@@ -19,7 +19,7 @@ workshop get 1512211167 | gma unpack - out
 # UNIMPLEMENTED: gma unpack myaddon.gma out "**.mdl"
 
 # download + print contents of all files matching pattern
-workshop get 1512211167 | gma cat "**.lua"
+workshop get 1512211167 | gma cat - "**.lua"
 ```
 
 ## Compiling 

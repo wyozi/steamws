@@ -36,6 +36,7 @@ struct ListCommand {
 
 #[derive(Clap)]
 struct CatCommand {
+    input: String,
     pattern: String
 }
 
@@ -183,6 +184,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         },
         SubCommand::Cat(t) => {
+            if t.input != "-" {
+                eprintln!("only - (stdin) argument is supported for input currently");
+                std::process::exit(1);
+            }
+
             let glob = Glob::new(&t.pattern).unwrap().compile_matcher();
 
             let stdin = io::stdin();
