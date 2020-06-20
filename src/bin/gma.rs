@@ -16,36 +16,47 @@ struct Opts {
 
 #[derive(Clap)]
 enum SubCommand {
+    /// Prints metadata about given gma
     #[clap()]
     Info(InfoCommand),
+    /// Lists files in given gma
     #[clap()]
     List(ListCommand),
+    /// Prints files in given gma
     #[clap()]
     Cat(CatCommand),
+    /// Unpacks gma to a folder
     #[clap()]
     Unpack(UnpackCommand),
 }
 
 #[derive(Clap)]
 struct InfoCommand {
+    /// Source gma. Either a file path or - for stdin
     input: String
 }
 
 #[derive(Clap)]
 struct ListCommand {
+    /// Source gma. Either a file path or - for stdin
     input: String
 }
 
 #[derive(Clap)]
 struct CatCommand {
+    /// Source gma. Either a file path or - for stdin
     input: String,
+    /// File pattern of files to print, e.g. "**.lua"
     pattern: String
 }
 
 #[derive(Clap)]
 struct UnpackCommand {
+    /// Source gma. Either a file path or - for stdin
     input: String,
+    /// Output folder for files
     output_folder: String,
+    /// File pattern of files to unpack, e.g. "**.lua"
     pattern: Option<String>,
 }
 
