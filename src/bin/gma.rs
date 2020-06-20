@@ -17,11 +17,17 @@ struct Opts {
 #[derive(Clap)]
 enum SubCommand {
     #[clap()]
+    Info(InfoCommand),
+    #[clap()]
     List(ListCommand),
     #[clap()]
     Cat(CatCommand),
     #[clap()]
     Unpack(UnpackCommand),
+}
+
+#[derive(Clap)]
+struct InfoCommand {
 }
 
 #[derive(Clap)]
@@ -41,6 +47,9 @@ struct UnpackCommand {
 }
 
 struct GMAFile {
+    name: String,
+    description: String,
+    author: String,
     entries: Vec<GMAEntry>
 }
 struct GMAEntry {
@@ -134,6 +143,9 @@ fn read_gma<R: Read + BufRead, F>(handle: &mut R, read_entry: F) -> GMAFile wher
     }
 
     GMAFile {
+        name: name,
+        description: desc,
+        author: author,
         entries: entries
     }
 }
@@ -142,6 +154,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
+        SubCommand::Info(t) => {
+            let stdin = io::stdin();
+            let mut handle = stdin.lock();
+            let mut buf_handle = BufReader::new(handle);
+        
+            let gma = read_gma(&mut buf_handle, |_| false);
+            println!("Name: {}", gma.name);
+            println!("Description: {}", gma.description);
+            println!("Author: {}", gma.author);
+            println!("---");
+            for entry in gma.entries {
+                println!("{}", entry.name);
+            }
+
+            Ok(())
+        },
         SubCommand::List(t) => {
             let stdin = io::stdin();
             let mut handle = stdin.lock();
