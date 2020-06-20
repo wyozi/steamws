@@ -4,7 +4,7 @@ Set of binaries for working with Steam Workshop. Utilizes Steamworks, so Steam m
 
 ```bash
 # print metadata about workshop
-# UNIMPLEMENTED: workshop info 1512211167
+workshop info 1512211167
 
 # download workshop file and cat to stdout
 workshop get 1512211167 > file.gma
