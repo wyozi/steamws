@@ -20,6 +20,10 @@ workshop get 1512211167 | gma unpack - out
 
 # download + print contents of all files matching pattern
 workshop get 1512211167 | gma cat - "**.lua"
+
+# example usecase:
+# very rough anti-backdoor script grepping for "http" in all files
+workshop get 426998109 | gma cat - | grep http
 ```
 
 ## Compiling 
