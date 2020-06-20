@@ -14,7 +14,7 @@ use std::error::Error;
 use std::fmt;
 
 #[derive(Clap)]
-#[clap()]
+#[clap(author, about, version)]
 struct Opts {
     /// Creates "steam_appid.txt" in working directory with given app id
     #[clap(short, long)]
@@ -26,21 +26,23 @@ struct Opts {
 
 #[derive(Clap)]
 enum SubCommand {
+    /// Downloads workshop item file and prints its contents to stdout
     #[clap()]
     Get(GetCommand),
 
+    /// Prints info about a workshop item
     #[clap()]
     Info(InfoCommand),
 }
 
 #[derive(Clap)]
 struct GetCommand {
-    input: String
+    workshop_id: String
 }
 
 #[derive(Clap)]
 struct InfoCommand {
-    input: String
+    workshop_id: String
 }
 
 struct SteamAppidHandle(bool);
@@ -92,13 +94,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match opts.subcmd {
         SubCommand::Info(t) => {
-            let id = u64::from_str(&t.input)?;
+            let id = u64::from_str(&t.workshop_id)?;
             let dets = steamws::workshop::published_file_details(id)
                 .await?;
             println!("{:#?}", dets);
         },
         SubCommand::Get(t) => {
-            let num_id = u64::from_str(&t.input)?;
+            let num_id = u64::from_str(&t.workshop_id)?;
 
             let (cl, _scl) = steamworks::Client::init().map_err(|e| WrappedSteamError(e))?;
             let ugc = cl.ugc();
@@ -137,7 +139,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 let mut files = fs::read_dir(folder)?.collect::<Vec<_>>();
                 if files.len() != 1 {
-                    eprintln!("Downloaded item contains more than one file! Specify the file you want with --file");
+                    eprintln!("Downloaded item contains more than one file");
                 }
     
                 let path = files.remove(0)?.path();

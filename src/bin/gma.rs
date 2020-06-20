@@ -8,7 +8,7 @@ use clap::Clap;
 use globset::Glob;
 
 #[derive(Clap)]
-#[clap()]
+#[clap(author, about, version)]
 struct Opts {
     #[clap(subcommand)]
     subcmd: SubCommand,
