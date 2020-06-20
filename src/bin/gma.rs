@@ -1,4 +1,4 @@
-use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::io;
 use std::io::{BufRead, BufReader, Read};
 use std::fs;
@@ -68,7 +68,6 @@ struct GMAFile {
 }
 struct GMAEntry {
     name: String,
-    offset: u64,
     size: u64,
     contents: Option<Vec<u8>>
 }
@@ -120,19 +119,14 @@ fn read_gma<F>(input: &str, read_entry: F) -> GMAFile where
     let _addon_version = handle.read_u32::<LittleEndian>().unwrap();
 
     let mut entries = vec!();
-    let mut offset = 0;
 
     while handle.read_u32::<LittleEndian>().unwrap() != 0 {
         let entry_name = read_nt_string(&mut handle);
         let entry_size = handle.read_i64::<LittleEndian>().unwrap();
-        let entry_crc = handle.read_u32::<LittleEndian>().unwrap();
-        let entry_offset = offset;
+        let _entry_crc = handle.read_u32::<LittleEndian>().unwrap();
 
-        offset += entry_size;
-
-        let mut entry = GMAEntry {
+        let entry = GMAEntry {
             name: entry_name,
-            offset: entry_offset as u64,
             size: entry_size as u64,
             contents: None
         };
@@ -143,12 +137,12 @@ fn read_gma<F>(input: &str, read_entry: F) -> GMAFile where
     for mut e in &mut entries {
         if read_entry(&e.name) {
             let mut buf = vec![0; e.size as usize];
-            handle.read_exact(&mut buf);
+            handle.read_exact(&mut buf).unwrap();
             e.contents = Some(buf);
         } else {
             // Pipe to sink
             let mut_handle = &mut handle;
-            io::copy(&mut mut_handle.take(e.size), &mut io::sink());
+            io::copy(&mut mut_handle.take(e.size), &mut io::sink()).unwrap();
         }
     }
 
@@ -224,7 +218,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 fs::create_dir(output_path)?;
             }
 
-            let does_match: Box<Fn(&str) -> bool> = match t.pattern {
+            let does_match: Box<dyn Fn(&str) -> bool> = match t.pattern {
                 Some(src) => {
                     let glob = Glob::new(&src).unwrap().compile_matcher();
                     Box::new(move |name| glob.is_match(name))

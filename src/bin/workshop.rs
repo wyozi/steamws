@@ -59,9 +59,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if !b {
                 eprintln!("download_item returned false; is steam running etc?");
             }
-            while true {
+            loop {
                 let state = ugc.item_state(id);
-                if ((state & steamworks::ItemState::INSTALLED) == steamworks::ItemState::INSTALLED) {
+                if (state & steamworks::ItemState::INSTALLED) == steamworks::ItemState::INSTALLED {
                     break;
                 }
                 let info = ugc.item_download_info(id);
@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let md = metadata(&folder).unwrap();
 
-            let mut reader: Box<Read>;
+            let mut reader: Box<dyn Read>;
 
             // Legacy workshop items can be direct files
             if md.is_file() {
