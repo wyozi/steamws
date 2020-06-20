@@ -2,6 +2,10 @@
 
 Set of binaries for working with Steam Workshop. Utilizes Steamworks, so Steam must be running for this to work.
 
+Included are
+- `workshop` for downloading and inspecting workshop items
+- `gma` for working with Garry's Mod Addon files
+
 ```bash
 # print metadata about workshop
 workshop info 1512211167
