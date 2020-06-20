@@ -47,7 +47,7 @@ struct CatCommand {
     /// Source gma. Either a file path or - for stdin
     input: String,
     /// File pattern of files to print, e.g. "**.lua"
-    pattern: String
+    pattern: Option<String>,
 }
 
 #[derive(Clap)]
@@ -192,14 +192,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 std::process::exit(1);
             }
 
-            let glob = Glob::new(&t.pattern).unwrap().compile_matcher();
+            let does_match: Box<dyn Fn(&str) -> bool> = match t.pattern {
+                Some(src) => {
+                    let glob = Glob::new(&src).unwrap().compile_matcher();
+                    Box::new(move |name| glob.is_match(name))
+                },
+                _ => Box::new(|_| true)
+            };
 
             let stdout = io::stdout();
             let mut stdout = stdout.lock();
 
-            let gma = read_gma(&t.input, |name| glob.is_match(name));
+            let gma = read_gma(&t.input, &does_match);
             for entry in gma.entries {
-                if glob.is_match(&entry.name) {
+                if does_match(&entry.name) {
                     let contents = entry.contents.unwrap();
                     io::copy(&mut &contents[..], &mut stdout).unwrap();
                 }
