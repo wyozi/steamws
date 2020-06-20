@@ -1,6 +1,9 @@
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
 use std::io::{BufRead, BufReader, Read};
+use std::fs;
+use std::fs::File;
+use std::path::{Component, Path};
 use clap::Clap;
 use globset::Glob;
 
@@ -34,7 +37,7 @@ struct CatCommand {
 struct UnpackCommand {
     input: String,
     output_folder: String,
-    pattern: String,
+    pattern: Option<String>,
 }
 
 struct GMAFile {
@@ -135,7 +138,7 @@ fn read_gma<R: Read + BufRead, F>(handle: &mut R, read_entry: F) -> GMAFile wher
     }
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
@@ -144,10 +147,12 @@ fn main() {
             let mut handle = stdin.lock();
             let mut buf_handle = BufReader::new(handle);
         
-            let f = read_gma(&mut buf_handle, |_| false);
-            for entry in f.entries {
+            let gma = read_gma(&mut buf_handle, |_| false);
+            for entry in gma.entries {
                 println!("{}", entry.name);
             }
+
+            Ok(())
         },
         SubCommand::Cat(t) => {
             let glob = Glob::new(&t.pattern).unwrap().compile_matcher();
@@ -159,16 +164,62 @@ fn main() {
             let stdout = io::stdout();
             let mut stdout = stdout.lock();
 
-            let f = read_gma(&mut buf_handle, |name| glob.is_match(name));
-            for entry in f.entries {
+            let gma = read_gma(&mut buf_handle, |name| glob.is_match(name));
+            for entry in gma.entries {
                 if glob.is_match(&entry.name) {
                     let contents = entry.contents.unwrap();
                     io::copy(&mut &contents[..], &mut stdout).unwrap();
                 }
             }
+
+            Ok(())
         },
         SubCommand::Unpack(t) => {
-            println!("{}", t.pattern);
+            if t.input != "-" {
+                eprintln!("only - (stdin) argument is supported for input currently");
+                std::process::exit(1);
+            }
+
+            let output_path = Path::new(&t.output_folder);
+            if !output_path.exists() {
+                fs::create_dir(output_path)?;
+            }
+
+            let does_match: Box<Fn(&str) -> bool> = match t.pattern {
+                Some(src) => {
+                    let glob = Glob::new(&src).unwrap().compile_matcher();
+                    Box::new(move |name| glob.is_match(name))
+                },
+                _ => Box::new(|_| true)
+            };
+
+            let stdin = io::stdin();
+            let mut handle = stdin.lock();
+            let mut buf_handle = BufReader::new(handle);
+
+            let gma = read_gma(&mut buf_handle, &does_match);
+            for entry in gma.entries {
+                if does_match(&entry.name) {
+                    let entry_path = Path::new(&entry.name);
+                    if entry_path.is_relative() {
+                        let path = output_path.join(entry_path);
+
+                        // Don't allow weird paths with parent components
+                        if path.components().any(|c| c == Component::ParentDir) {
+                            continue;
+                        }
+
+                        let parent = path.parent().unwrap();
+                        fs::create_dir_all(parent)?;
+
+                        let contents = entry.contents.unwrap();
+                        let mut file = File::create(path).unwrap();
+                        io::copy(&mut &contents[..], &mut file).unwrap();
+                    }
+                }
+            }
+
+            Ok(())
         },
     }
 }
