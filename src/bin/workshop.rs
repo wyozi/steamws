@@ -2,6 +2,7 @@ use steamws;
 use steamworks;
 use std::str::FromStr;
 use std::{thread, time};
+use std::path::Path;
 use std::fs;
 use std::fs::File;
 use std::fs::metadata;
@@ -13,6 +14,10 @@ use lzma::LzmaReader;
 #[derive(Clap)]
 #[clap()]
 struct Opts {
+    /// Creates "steam_appid.txt" in working directory with given app id
+    #[clap(short, long)]
+    app_id: Option<String>,
+
     #[clap(subcommand)]
     subcmd: SubCommand,
 }
@@ -36,10 +41,38 @@ struct InfoCommand {
     input: String
 }
 
+struct SteamAppidHandle(bool);
+impl SteamAppidHandle {
+    fn create(id: &str) -> SteamAppidHandle {
+        let path = Path::new("steam_appid.txt");
+        if !path.exists() {
+            fs::write(path, id).unwrap();
+            SteamAppidHandle(true)
+        } else {
+            SteamAppidHandle(false)
+        }
+    }
+}
+impl Drop for SteamAppidHandle {
+    fn drop(&mut self) {
+        if self.0 {
+            let path = Path::new("steam_appid.txt");
+            if path.exists() {
+                fs::remove_file(path).unwrap();
+            }
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts: Opts = Opts::parse();
+
+    // Handle that implements Drop for automatic cleanup
+    let _app_id_handle = match opts.app_id {
+        Some(id) => Some(SteamAppidHandle::create(&id)),
+        _ => None
+    };
 
     match opts.subcmd {
         SubCommand::Info(t) => {

@@ -3,6 +3,7 @@
 Set of binaries for working with Steam Workshop. Utilizes Steamworks, so Steam must be running for this to work.
 
 Included are
+
 - `workshop` for downloading and inspecting workshop items
 - `gma` for working with Garry's Mod Addon files
 
@@ -30,7 +31,7 @@ workshop get 1512211167 | gma cat - "**.lua"
 workshop get 426998109 | gma cat - | grep http
 ```
 
-## Compiling 
+## Compiling
 
 Compile with [Steamworks SDK](https://partner.steamgames.com/downloads/steamworks_sdk.zip), e.g. `STEAM_SDK_LOCATION=~/Downloads/steam_sdk cargo build`
 
@@ -45,3 +46,5 @@ If you run any of the workshop commands without a game running in the background
 will not be able to figure out the app_id and the binary will crash.
 
 You can fix that by adding `steam_appid.txt` to working directory with the app id.
+The `workshop` binary provides `-a <id>` option to temporarily create the file with given id,
+and it'll also try its best to clean up the file before the command finishes.
