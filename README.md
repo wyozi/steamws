@@ -24,6 +24,13 @@ workshop get 1512211167 | gma cat - "**.lua"
 
 ## Compiling 
 
-Compile with [Steamworks SDK](https://partner.steamgames.com/?goto=%2Fdownloads%2Fsteamworks_sdk.zip), e.g. `STEAM_SDK_LOCATION=~/Downloads/steam_sdk cargo build`
+Compile with [Steamworks SDK](https://partner.steamgames.com/downloads/steamworks_sdk.zip), e.g. `STEAM_SDK_LOCATION=~/Downloads/steam_sdk cargo build`
 
 You can test locally with `cargo run --bin workshop -- get 1512211167 | cargo run --bin gma -- list`
+
+## Note about app_id
+
+If you run any of the workshop commands without a game running in the background, Steam
+will not be able to figure out the app_id and the binary will crash.
+
+You can fix that by adding `steam_appid.txt` to working directory with the app id.
