@@ -10,6 +10,8 @@ use std::io;
 use std::io::Read;
 use clap::Clap;
 use lzma::LzmaReader;
+use std::error::Error;
+use std::fmt;
 
 #[derive(Clap)]
 #[clap()]
@@ -64,6 +66,20 @@ impl Drop for SteamAppidHandle {
     }
 }
 
+#[derive(Debug)]
+struct WrappedSteamError(steamworks::SteamError);
+impl fmt::Display for WrappedSteamError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", &self.0)
+    }
+}
+impl Error for WrappedSteamError {}
+impl From<steamworks::SteamError> for WrappedSteamError {
+    fn from(error: steamworks::SteamError) -> Self {
+        WrappedSteamError(error)
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts: Opts = Opts::parse();
@@ -79,12 +95,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let id = u64::from_str(&t.input)?;
             let dets = steamws::workshop::published_file_details(id)
                 .await?;
-            println!("{:#?}", dets.unwrap());
+            println!("{:#?}", dets);
         },
         SubCommand::Get(t) => {
             let num_id = u64::from_str(&t.input)?;
 
-            let (cl, _scl) = steamworks::Client::init().unwrap();
+            let (cl, _scl) = steamworks::Client::init().map_err(|e| WrappedSteamError(e))?;
             let ugc = cl.ugc();
 
             let id = steamworks::PublishedFileId(num_id);
@@ -108,7 +124,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             eprintln!("{:?}", install_info);
             let folder = install_info.folder;
 
-            let md = metadata(&folder).unwrap();
+            let md = metadata(&folder)?;
 
             let mut reader: Box<dyn Read>;
 
@@ -117,14 +133,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let file = File::open(folder)?;
                 // Legacy gmod binaries are LZMA compressed
                 // TODO verify if file is LZMA before doing this
-                reader = Box::new(LzmaReader::new_decompressor(file).unwrap());
+                reader = Box::new(LzmaReader::new_decompressor(file)?);
             } else {
-                let files = fs::read_dir(folder).unwrap().collect::<Vec<_>>();
+                let mut files = fs::read_dir(folder)?.collect::<Vec<_>>();
                 if files.len() != 1 {
                     eprintln!("Downloaded item contains more than one file! Specify the file you want with --file");
                 }
     
-                let path = files[0].as_ref().unwrap().path();
+                let path = files.remove(0)?.path();
                 eprintln!("path: {:?}", path.display());
                 let file = File::open(path)?;
                 reader = Box::new(file);
