@@ -28,10 +28,12 @@ enum SubCommand {
 
 #[derive(Clap)]
 struct InfoCommand {
+    input: String
 }
 
 #[derive(Clap)]
 struct ListCommand {
+    input: String
 }
 
 #[derive(Clap)]
@@ -72,8 +74,11 @@ fn read_nt_string<R: Read + BufRead>(handle: &mut R) -> String {
         .to_owned();
 }
 
-fn read_gma<R: Read + BufRead, F>(handle: &mut R, read_entry: F) -> GMAFile where
+fn read_gma<F>(input: &str, read_entry: F) -> GMAFile where
     F: Fn(&str) -> bool {
+
+    let stdin = io::stdin();
+    let mut handle = BufReader::new(stdin.lock());
     
     let mut magic_buf = [0; 4];
     handle.read_exact(&mut magic_buf).unwrap();
@@ -92,14 +97,14 @@ fn read_gma<R: Read + BufRead, F>(handle: &mut R, read_entry: F) -> GMAFile wher
     let _steamid = handle.read_u64::<LittleEndian>().unwrap();
     let _timestamp = handle.read_u64::<LittleEndian>().unwrap();
 
-    let mut dumb_string = read_nt_string(handle);
+    let mut dumb_string = read_nt_string(&mut handle);
     while dumb_string.len() > 0 {
-        dumb_string = read_nt_string(handle);
+        dumb_string = read_nt_string(&mut handle);
     }
 
-    let name = read_nt_string(handle);
-    let desc = read_nt_string(handle);
-    let author = read_nt_string(handle);
+    let name = read_nt_string(&mut handle);
+    let desc = read_nt_string(&mut handle);
+    let author = read_nt_string(&mut handle);
 
     let _addon_version = handle.read_u32::<LittleEndian>().unwrap();
 
@@ -107,7 +112,7 @@ fn read_gma<R: Read + BufRead, F>(handle: &mut R, read_entry: F) -> GMAFile wher
     let mut offset = 0;
 
     while handle.read_u32::<LittleEndian>().unwrap() != 0 {
-        let entry_name = read_nt_string(handle);
+        let entry_name = read_nt_string(&mut handle);
         let entry_size = handle.read_i64::<LittleEndian>().unwrap();
         let entry_crc = handle.read_u32::<LittleEndian>().unwrap();
         let entry_offset = offset;
@@ -131,7 +136,8 @@ fn read_gma<R: Read + BufRead, F>(handle: &mut R, read_entry: F) -> GMAFile wher
             e.contents = Some(buf);
         } else {
             // Pipe to sink
-            io::copy(&mut handle.take(e.size), &mut io::sink());
+            let mut_handle = &mut handle;
+            io::copy(&mut mut_handle.take(e.size), &mut io::sink());
         }
     }
 
@@ -156,11 +162,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match opts.subcmd {
         SubCommand::Info(t) => {
-            let stdin = io::stdin();
-            let mut handle = stdin.lock();
-            let mut buf_handle = BufReader::new(handle);
-        
-            let gma = read_gma(&mut buf_handle, |_| false);
+            let gma = read_gma(&t.input, |_| false);
             println!("Name: {}", gma.name);
             println!("Description: {}", gma.description);
             println!("Author: {}", gma.author);
@@ -172,11 +174,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         },
         SubCommand::List(t) => {
-            let stdin = io::stdin();
-            let mut handle = stdin.lock();
-            let mut buf_handle = BufReader::new(handle);
-        
-            let gma = read_gma(&mut buf_handle, |_| false);
+            let gma = read_gma(&t.input, |_| false);
             for entry in gma.entries {
                 println!("{}", entry.name);
             }
@@ -191,14 +189,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let glob = Glob::new(&t.pattern).unwrap().compile_matcher();
 
-            let stdin = io::stdin();
-            let mut handle = stdin.lock();
-            let mut buf_handle = BufReader::new(handle);
-        
             let stdout = io::stdout();
             let mut stdout = stdout.lock();
 
-            let gma = read_gma(&mut buf_handle, |name| glob.is_match(name));
+            let gma = read_gma(&t.input, |name| glob.is_match(name));
             for entry in gma.entries {
                 if glob.is_match(&entry.name) {
                     let contents = entry.contents.unwrap();
@@ -227,11 +221,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 _ => Box::new(|_| true)
             };
 
-            let stdin = io::stdin();
-            let mut handle = stdin.lock();
-            let mut buf_handle = BufReader::new(handle);
-
-            let gma = read_gma(&mut buf_handle, &does_match);
+            let gma = read_gma(&t.input, &does_match);
             for entry in gma.entries {
                 if does_match(&entry.name) {
                     let entry_path = Path::new(&entry.name);

@@ -10,7 +10,7 @@ Set of binaries for working with Steam Workshop. Utilizes Steamworks, so Steam m
 workshop get 1512211167 > file.gma
 
 # download + list file entries inside .gma
-workshop get 1512211167 | gma list
+workshop get 1512211167 | gma list -
 
 # download + unpack files inside .gma to folder "out" in working dir
 workshop get 1512211167 | gma unpack - out
