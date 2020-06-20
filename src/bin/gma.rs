@@ -2,6 +2,7 @@ use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
 use std::io::{BufRead, BufReader, Read};
 use clap::Clap;
+use globset::Glob;
 
 #[derive(Clap)]
 #[clap()]
@@ -14,10 +15,26 @@ struct Opts {
 enum SubCommand {
     #[clap()]
     List(ListCommand),
+    #[clap()]
+    Cat(CatCommand),
+    #[clap()]
+    Unpack(UnpackCommand),
 }
 
 #[derive(Clap)]
 struct ListCommand {
+}
+
+#[derive(Clap)]
+struct CatCommand {
+    pattern: String
+}
+
+#[derive(Clap)]
+struct UnpackCommand {
+    input: String,
+    output_folder: String,
+    pattern: String,
 }
 
 const SUPPORTED_GMA_VERSION: u8 = 3;
@@ -94,6 +111,13 @@ fn main() {
             let mut buf_handle = BufReader::new(handle);
         
             read_gma(&mut buf_handle);
+        },
+        SubCommand::Cat(t) => {
+            let glob = Glob::new(&t.pattern).unwrap().compile_matcher();
+            println!("{} = {}", "my/addon/test.lua", glob.is_match("my/addon/test.lua"));
+        },
+        SubCommand::Unpack(t) => {
+            println!("{}", t.pattern);
         },
     }
 }
