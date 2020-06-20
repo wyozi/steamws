@@ -16,10 +16,10 @@ workshop get 1512211167 | gma list
 # UNIMPLEMENTED: workshop get 1512211167 | gma unpack - out
 
 # unpack files matching given filter from .gma in working dir
-gma unpack myaddon.gma out **.mdl
+gma unpack myaddon.gma out "**.mdl"
 
 # download + print contents of all files matching pattern
-# UNIMPLEMENTED: workshop get 1512211167 | gma cat **.lua 
+# UNIMPLEMENTED: workshop get 1512211167 | gma cat "**.lua"
 ```
 
 ## Compiling 

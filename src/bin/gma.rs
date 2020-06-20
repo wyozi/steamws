@@ -37,6 +37,16 @@ struct UnpackCommand {
     pattern: String,
 }
 
+struct GMAFile {
+    entries: Vec<GMAEntry>
+}
+struct GMAEntry {
+    name: String,
+    offset: u64,
+    size: u64,
+    contents: Option<Vec<u8>>
+}
+
 const SUPPORTED_GMA_VERSION: u8 = 3;
 
 fn read_nt_string<R: Read + BufRead>(handle: &mut R) -> String {
@@ -49,7 +59,9 @@ fn read_nt_string<R: Read + BufRead>(handle: &mut R) -> String {
         .to_owned();
 }
 
-fn read_gma<R: Read + BufRead>(handle: &mut R) {
+fn read_gma<R: Read + BufRead, F>(handle: &mut R, read_entry: F) -> GMAFile where
+    F: Fn(&str) -> bool {
+    
     let mut magic_buf = [0; 4];
     handle.read_exact(&mut magic_buf).unwrap();
 
@@ -75,10 +87,10 @@ fn read_gma<R: Read + BufRead>(handle: &mut R) {
     let name = read_nt_string(handle);
     let desc = read_nt_string(handle);
     let author = read_nt_string(handle);
-    println!("{}", name);
 
     let _addon_version = handle.read_u32::<LittleEndian>().unwrap();
 
+    let mut entries = vec!();
     let mut offset = 0;
 
     while handle.read_u32::<LittleEndian>().unwrap() != 0 {
@@ -89,7 +101,25 @@ fn read_gma<R: Read + BufRead>(handle: &mut R) {
 
         offset += entry_size;
 
-        println!("{} at {}", entry_name, entry_offset);
+        let mut entry = GMAEntry {
+            name: entry_name,
+            offset: entry_offset as u64,
+            size: entry_size as u64,
+            contents: None
+        };
+        entries.push(entry);
+    }
+
+    // Read file contents
+    for mut e in &mut entries {
+        if read_entry(&e.name) {
+            let mut buf = vec![0; e.size as usize];
+            handle.read_exact(&mut buf);
+            e.contents = Some(buf);
+        } else {
+            // Pipe to sink
+            io::copy(&mut handle.take(e.size), &mut io::sink());
+        }
     }
 
     loop {
@@ -98,6 +128,10 @@ fn read_gma<R: Read + BufRead>(handle: &mut R) {
         if read == 0 {
             break; // EOF
         }
+    }
+
+    GMAFile {
+        entries: entries
     }
 }
 
@@ -110,11 +144,28 @@ fn main() {
             let mut handle = stdin.lock();
             let mut buf_handle = BufReader::new(handle);
         
-            read_gma(&mut buf_handle);
+            let f = read_gma(&mut buf_handle, |_| false);
+            for entry in f.entries {
+                println!("{}", entry.name);
+            }
         },
         SubCommand::Cat(t) => {
             let glob = Glob::new(&t.pattern).unwrap().compile_matcher();
-            println!("{} = {}", "my/addon/test.lua", glob.is_match("my/addon/test.lua"));
+
+            let stdin = io::stdin();
+            let mut handle = stdin.lock();
+            let mut buf_handle = BufReader::new(handle);
+        
+            let stdout = io::stdout();
+            let mut stdout = stdout.lock();
+
+            let f = read_gma(&mut buf_handle, |name| glob.is_match(name));
+            for entry in f.entries {
+                if glob.is_match(&entry.name) {
+                    let contents = entry.contents.unwrap();
+                    io::copy(&mut &contents[..], &mut stdout).unwrap();
+                }
+            }
         },
         SubCommand::Unpack(t) => {
             println!("{}", t.pattern);
