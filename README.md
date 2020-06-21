@@ -45,6 +45,6 @@ If you get a fun error (like `dyld: Library not loaded: @loader_path/libsteam_ap
 If you run any of the workshop commands without a game running in the background, Steam
 will not be able to figure out the app_id and the binary will crash.
 
-You can fix that by adding `steam_appid.txt` to working directory with the app id.
+You can fix that by creating `steam_appid.txt` in the working directory or `SteamAppId` environment variable with the app id.
 The `workshop` binary provides `-a <id>` option to temporarily create the file with given id,
 and it'll also try its best to clean up the file before the command finishes.
