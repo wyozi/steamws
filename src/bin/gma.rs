@@ -1,12 +1,12 @@
 use steamws::gma;
 
-use std::io;
-use std::fs;
-use std::fs::File;
-use std::io::Read;
-use std::path::{Component, Path, PathBuf};
 use clap::Clap;
 use globset::Glob;
+use std::fs;
+use std::fs::File;
+use std::io;
+use std::io::Read;
+use std::path::{Component, Path, PathBuf};
 
 #[derive(Clap)]
 #[clap(author, about, version)]
@@ -37,13 +37,13 @@ enum SubCommand {
 #[derive(Clap)]
 struct InfoCommand {
     /// Source gma. Either a file path or - for stdin
-    input: String
+    input: String,
 }
 
 #[derive(Clap)]
 struct ListCommand {
     /// Source gma. Either a file path or - for stdin
-    input: String
+    input: String,
 }
 
 #[derive(Clap)]
@@ -71,11 +71,15 @@ struct PackCommand {
 
     /// Addon title (included in the gma itself)
     #[clap(short, long)]
-    title: String,
+    title: Option<String>,
 
     /// Addon description (included in the gma itself)
+    ///
+    /// Note that by convention GMAD places a JSON with metadata
+    /// in the description string. You should probably not use this
+    /// flag unless you know what you're doing
     #[clap(short, long)]
-    description: String,
+    description: Option<String>,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -93,7 +97,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             Ok(())
-        },
+        }
         SubCommand::List(t) => {
             let gma = gma::read_gma(&t.input, |_| false);
             for entry in gma.entries {
@@ -101,7 +105,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             Ok(())
-        },
+        }
         SubCommand::Cat(t) => {
             if t.input != "-" {
                 eprintln!("only - (stdin) argument is supported for input currently");
@@ -112,8 +116,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Some(src) => {
                     let glob = Glob::new(&src).unwrap().compile_matcher();
                     Box::new(move |name| glob.is_match(name))
-                },
-                _ => Box::new(|_| true)
+                }
+                _ => Box::new(|_| true),
             };
 
             let stdout = io::stdout();
@@ -128,7 +132,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             Ok(())
-        },
+        }
         SubCommand::Unpack(t) => {
             if t.input != "-" {
                 eprintln!("only - (stdin) argument is supported for input currently");
@@ -144,12 +148,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Some(src) => {
                     let glob = Glob::new(&src).unwrap().compile_matcher();
                     Box::new(move |name| glob.is_match(name))
-                },
-                _ => Box::new(|_| true)
+                }
+                _ => Box::new(|_| true),
             };
 
-            let gma = gma::read_gma(&t.input, &does_match);
-            for entry in gma.entries {
+            let gma_file = gma::read_gma(&t.input, &does_match);
+            for entry in &gma_file.entries {
                 if does_match(&entry.name) {
                     let entry_path = Path::new(&entry.name);
                     if entry_path.is_relative() {
@@ -163,39 +167,68 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let parent = path.parent().unwrap();
                         fs::create_dir_all(parent)?;
 
-                        let contents = entry.contents.unwrap();
+                        let contents = entry.contents.as_ref().unwrap();
                         let mut file = File::create(path).unwrap();
                         io::copy(&mut &contents[..], &mut file).unwrap();
                     }
                 }
             }
 
-            Ok(())
-        },
-        SubCommand::Pack(t) => {
+            if let Some(addon_json) = gma::AddonJson::from_gma_file(&gma_file) {
+                let json = serde_json::to_string_pretty(&addon_json).unwrap();
+                std::fs::write(output_path.join("steamws_addon.json"), json)?;
+            }
 
-            fn visit_dir(base_path: &Path, visit: &Path) -> Result<Vec<(String, PathBuf)>, io::Error> {
+            Ok(())
+        }
+        SubCommand::Pack(t) => {
+            fn visit_dir(
+                base_path: &Path,
+                visit: &Path,
+            ) -> Result<Vec<(String, PathBuf)>, io::Error> {
                 if visit.is_dir() {
-                    Ok(
-                        fs::read_dir(visit)?
+                    Ok(fs::read_dir(visit)?
                         .flat_map(|entry| {
                             let okentry = entry.unwrap();
                             let path = okentry.path();
                             if path.is_dir() {
                                 visit_dir(&base_path.join(okentry.file_name()), &path).unwrap()
                             } else {
-                                vec!((base_path.join(okentry.file_name()).to_str().unwrap().to_owned(), path))
+                                vec![(
+                                    base_path
+                                        .join(okentry.file_name())
+                                        .to_str()
+                                        .unwrap()
+                                        .to_owned(),
+                                    path,
+                                )]
                             }
                         })
-                        .collect()
-                    )
+                        .collect())
                 } else {
-                    Ok(vec!())
+                    Ok(vec![])
                 }
             }
+
+            let addon_json =
+                vec!(
+                    Path::new(&t.folder).join("addon.json"),
+                    Path::new(&t.folder).join("steamws_addon.json")
+                )
+                .iter()
+                .filter_map(|p| {
+                    if p.exists() {
+                        gma::AddonJson::from_file(&p)
+                    } else {
+                        None
+                    }
+                })
+                .next();
+
             let entries = visit_dir(Path::new(""), Path::new(&t.folder))
                 .unwrap()
                 .iter()
+                .filter(|(name, _)| name != "addon.json" && name != "steamws_addon.json")
                 .map(|(name, path)| {
                     let mut f = File::open(&path).expect("no file found");
                     let metadata = fs::metadata(&path).expect("unable to read metadata");
@@ -206,16 +239,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         name: name.to_string(),
                         size: buffer.len() as u64,
                         crc: 0,
-                        contents: Some(buffer)
+                        contents: Some(buffer),
                     }
                 })
                 .collect::<Vec<_>>();
 
             let g = gma::GMAFile {
-                name: t.title,
-                description: t.description,
+                name: t.title.or_else(|| {
+                    addon_json.as_ref().map(|a| a.title.clone())
+                }).expect("missing addon title"),
+                description: t.description.unwrap_or_else(|| {
+                    match addon_json {
+                        Some(a) => serde_json::to_string_pretty(&gma::GMADescriptionJson::from_addon(&a)).unwrap(),
+                        _ => "{}".to_string()
+                    }
+                }),
                 author: "Author Name".to_string(),
-                entries: entries
+                entries: entries,
             };
 
             let stdout = io::stdout();
