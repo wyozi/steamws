@@ -1,6 +1,6 @@
 use steamws;
 use steamworks;
-use steamworks::{PublishedFileId, AppId, SteamError};
+use steamworks::{PublishedFileId, AppId, SteamError, ItemState};
 use std::str::FromStr;
 use std::{thread, time};
 use std::path::Path;
@@ -13,7 +13,6 @@ use clap::Clap;
 use lzma::LzmaReader;
 use std::error::Error;
 use std::fmt;
-use std::time::Duration;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -24,6 +23,10 @@ struct Opts {
     /// Creates "steam_appid.txt" in working directory with given app id
     #[clap(short, long)]
     app_id: Option<String>,
+
+    /// How loud we will be
+    #[clap(short, long, parse(from_occurrences))]
+    verbose: i32,
 
     #[clap(subcommand)]
     subcmd: SubCommand,
@@ -170,6 +173,7 @@ fn submit_update<M: steamworks::Manager>(scl: &steamworks::SingleClient<M>, hand
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts: Opts = Opts::parse();
+    let is_verbose = opts.verbose > 0; // TODO maybe we'll do multiple levels later
 
     // Handle that implements Drop for automatic cleanup
     let _app_id_handle = match opts.app_id {
@@ -199,20 +203,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             loop {
                 let state = ugc.item_state(id);
-                if (state & steamworks::ItemState::INSTALLED) == steamworks::ItemState::INSTALLED {
-                    break;
+                if is_verbose {
+                    eprintln!("item state: {:?}", state);
+                }
+                if (state & ItemState::INSTALLED) == ItemState::INSTALLED {
+                    
+                    if !state.intersects(
+                        ItemState::NEEDS_UPDATE | ItemState::DOWNLOADING | ItemState::DOWNLOAD_PENDING
+                    ) {
+                        break;
+                    }
+                    // installed but needs an update
                 }
                 let info = ugc.item_download_info(id);
-                eprintln!("download info: {:?}", info);
-                let ten_millis = time::Duration::from_millis(100);
-                thread::sleep(ten_millis);
+                if is_verbose {
+                    match info {
+                        Some((downloaded, total)) if total > 0 => 
+                            eprintln!("downloaded {} / {} ({}%)", downloaded, total, downloaded / total * 100),
+                        _ => {}
+                    }
+                }
+
+                thread::sleep(time::Duration::from_millis(500));
             }
-            eprintln!("installed!");
+            if is_verbose {
+                eprintln!("workshop item set to installed! proceeding..");
+            }
 
             let install_info = ugc.item_install_info(id).unwrap();
-            eprintln!("{:?}", install_info);
-            let folder = install_info.folder;
 
+            if is_verbose {
+                eprintln!("item info {:?}", install_info);
+            }
+
+            let folder = install_info.folder;
             let md = metadata(&folder)?;
 
             let mut reader: Box<dyn Read>;
@@ -230,7 +254,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
     
                 let path = files.remove(0)?.path();
-                eprintln!("path: {:?}", path.display());
+                if is_verbose {
+                    eprintln!("found likely item path: {:?}", path.display());
+                }
                 let file = File::open(path)?;
                 reader = Box::new(file);
             }
@@ -278,10 +304,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let file_path = tempdir_path.join(t.content_file_name);
                     
                     {
+                        if is_verbose {
+                            eprintln!("creating a temporary file as the upload target: {:?}", file_path);
+                        }
                         let stdin = io::stdin();
                         let mut handle = stdin.lock();
                         let mut f = File::create(file_path)?;
                         let b = io::copy(&mut handle, &mut f)?;
+                        if is_verbose {
+                            eprintln!("wrote {} bytes to the temporary file", b);
+                        }
                     }
 
                     upd = upd.content_path(&tempdir_path);
