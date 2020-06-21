@@ -1,7 +1,12 @@
 [package]
 name = "steamws"
+description = "Set of binaries for working with Steam Workshop"
+homepage = "https://github.com/wyozi/steamws/"
+repository = "https://github.com/wyozi/steamws/"
+readme = "README.md"
 version = "0.1.0"
 authors = ["wyozi"]
+license = "MIT"
 edition = "2018"
 
 [dependencies]
