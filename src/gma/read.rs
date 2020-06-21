@@ -78,12 +78,11 @@ pub fn read_gma<F>(input: &str, read_entry: F) -> GMAFile where
         }
     }
 
-    loop {
-        let mut buf = [0; 1024];
-        let read = handle.read(&mut buf).unwrap();
-        if read == 0 {
-            break; // EOF
-        }
+    let _addon_crc = handle.read_u32::<LittleEndian>().unwrap();
+
+    let remaining = io::copy(&mut handle, &mut io::sink()).unwrap();
+    if remaining != 0 {
+        eprintln!("Warning: GMA file had {} bytes of extra _after_ the entries", remaining);
     }
 
     GMAFile {
