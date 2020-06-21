@@ -68,8 +68,18 @@ struct CreateCommand {
 struct UpdateCommand {
     workshop_id: String,
 
-    /// Folder containing new item contents. If omitted, we will only update metadata
-    folder: Option<String>,
+    /// Folder containing new item contents or "-" (for stdin). If omitted, only update metadata.
+    input: Option<String>,
+
+    /// Filename used for single-file items when piping into the update command.
+    /// 
+    /// If you use the "-" option for input, we will automatically create
+    /// a temporary folder containing a single file (from stdin) and use that
+    /// as the folder that will be uploaded to workshop.
+    /// 
+    /// This parameter determines the name of the file inside that folder.
+    #[clap(long, default_value = "temp.gma")]
+    content_file_name: String,
 
     /// Workshop item title
     #[clap(short, long)]
@@ -261,8 +271,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(title) = t.title {
                 upd = upd.title(&title);
             }
-            if let Some(folder) = t.folder {
-                upd = upd.content_path(Path::new(&folder));
+            if let Some(input) = t.input {
+                if input == "-" {
+                    let tempdir = tempfile::tempdir()?;
+                    let tempdir_path = tempdir.into_path(); // TODO cleanup tempdir
+                    let file_path = tempdir_path.join(t.content_file_name);
+                    
+                    {
+                        let stdin = io::stdin();
+                        let mut handle = stdin.lock();
+                        let mut f = File::create(file_path)?;
+                        let b = io::copy(&mut handle, &mut f)?;
+                    }
+
+                    upd = upd.content_path(&tempdir_path);
+                } else {
+                    upd = upd.content_path(Path::new(&input));
+                }
             }
             submit_update(&scl, upd, t.message.as_deref()).map_err(|e| WrappedSteamError(e))?;
             
