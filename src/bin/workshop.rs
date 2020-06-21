@@ -1,5 +1,6 @@
 use steamws;
 use steamworks;
+use steamworks::{PublishedFileId, AppId, SteamError};
 use std::str::FromStr;
 use std::{thread, time};
 use std::path::Path;
@@ -12,6 +13,10 @@ use clap::Clap;
 use lzma::LzmaReader;
 use std::error::Error;
 use std::fmt;
+use std::time::Duration;
+use std::sync::Arc;
+use std::sync::Mutex;
+
 
 #[derive(Clap)]
 #[clap(author, about, version)]
@@ -26,13 +31,28 @@ struct Opts {
 
 #[derive(Clap)]
 enum SubCommand {
+    /// Prints info about a workshop item
+    #[clap()]
+    Info(InfoCommand),
+
     /// Downloads workshop item file and prints its contents to stdout
     #[clap()]
     Get(GetCommand),
 
-    /// Prints info about a workshop item
+    /// Creates a new workshop item
+    /// 
+    /// You must populate the item separately with `workshop update`
     #[clap()]
-    Info(InfoCommand),
+    Create(CreateCommand),
+
+    /// Updates a new workshop item
+    #[clap()]
+    Update(UpdateCommand),
+}
+
+#[derive(Clap)]
+struct InfoCommand {
+    workshop_id: String
 }
 
 #[derive(Clap)]
@@ -41,8 +61,23 @@ struct GetCommand {
 }
 
 #[derive(Clap)]
-struct InfoCommand {
-    workshop_id: String
+struct CreateCommand {
+}
+
+#[derive(Clap)]
+struct UpdateCommand {
+    workshop_id: String,
+
+    /// Folder containing new item contents. If omitted, we will only update metadata
+    folder: Option<String>,
+
+    /// Workshop item title
+    #[clap(short, long)]
+    title: Option<String>,
+
+    /// Changelog message visible on the workshop changes pages
+    #[clap(short, long)]
+    message: Option<String>,
 }
 
 struct SteamAppidHandle(bool);
@@ -82,6 +117,46 @@ impl From<steamworks::SteamError> for WrappedSteamError {
     }
 }
 
+type CreateResult = Result<(PublishedFileId, bool), SteamError>;
+fn create<M: steamworks::Manager>(scl: &steamworks::SingleClient<M>, ugc: &steamworks::UGC<M>, app_id: AppId) -> CreateResult {
+    let data = Arc::new(Mutex::new(None));
+    
+    {
+        let c_data = data.clone();
+        ugc.create_item(app_id, steamworks::FileType::Community, move |res| {
+            let mut data = c_data.lock().unwrap();
+            *data = Some(res);
+        });
+    }
+
+    while data.lock().unwrap().is_none() {
+        scl.run_callbacks(); 
+        ::std::thread::sleep(::std::time::Duration::from_millis(100)); 
+    }
+
+    return data.lock().unwrap().unwrap();
+}
+
+type SubmitUpdateResult = Result<(PublishedFileId, bool), SteamError>;
+fn submit_update<M: steamworks::Manager>(scl: &steamworks::SingleClient<M>, handle: steamworks::UpdateHandle<M>, message: Option<&str>) -> SubmitUpdateResult {
+    let data = Arc::new(Mutex::new(None));
+    
+    {
+        let c_data = data.clone();
+        handle.submit(message, move |res| {
+            let mut data = c_data.lock().unwrap();
+            *data = Some(res);
+        });
+    }
+
+    while data.lock().unwrap().is_none() {
+        scl.run_callbacks(); 
+        ::std::thread::sleep(::std::time::Duration::from_millis(100)); 
+    }
+
+    return data.lock().unwrap().unwrap();
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts: Opts = Opts::parse();
@@ -98,6 +173,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let dets = steamws::workshop::published_file_details(id)
                 .await?;
             println!("{:#?}", dets);
+
+            Ok(())
         },
         SubCommand::Get(t) => {
             let num_id = u64::from_str(&t.workshop_id)?;
@@ -151,7 +228,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let stdout = io::stdout();
             let mut stdout = stdout.lock();
             io::copy(&mut reader, &mut stdout)?;
+
+            Ok(())
+        },
+        SubCommand::Create(_) => {
+            let (cl, scl) = steamworks::Client::init().map_err(|e| WrappedSteamError(e))?;
+            let ugc = cl.ugc();
+
+            let app_id = cl.utils().app_id();
+
+            let res = create(&scl, &ugc, app_id).map_err(|e| WrappedSteamError(e))?;
+            match res {
+                (steamworks::PublishedFileId(id), true) => {
+                    eprintln!("Accept Steam Workshop legal agreement before publishing");
+                    println!("{}", id);
+                    Ok(())
+                },
+                (steamworks::PublishedFileId(id), false) => {
+                    println!("{}", id);
+                    Ok(())
+                }
+            }
+        },
+        SubCommand::Update(t) => {
+            let num_id = u64::from_str(&t.workshop_id)?;
+
+            let (cl, scl) = steamworks::Client::init().map_err(|e| WrappedSteamError(e))?;
+            let ugc = cl.ugc();
+
+            let app_id = cl.utils().app_id();
+            let mut upd = ugc.start_item_update(app_id, PublishedFileId(num_id));
+            if let Some(title) = t.title {
+                upd = upd.title(&title);
+            }
+            if let Some(folder) = t.folder {
+                upd = upd.content_path(Path::new(&folder));
+            }
+            submit_update(&scl, upd, t.message.as_deref()).map_err(|e| WrappedSteamError(e))?;
+            
+            Ok(())
         }
     }
-    Ok(())
 }
