@@ -10,5 +10,6 @@ pub struct GMAFile {
 pub struct GMAEntry {
     pub name: String,
     pub size: u64,
+    pub crc: u32,
     pub contents: Option<Vec<u8>>
 }

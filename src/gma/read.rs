@@ -54,11 +54,12 @@ pub fn read_gma<F>(input: &str, read_entry: F) -> GMAFile where
     while handle.read_u32::<LittleEndian>().unwrap() != 0 {
         let entry_name = read_nt_string(&mut handle);
         let entry_size = handle.read_i64::<LittleEndian>().unwrap();
-        let _entry_crc = handle.read_u32::<LittleEndian>().unwrap();
+        let entry_crc = handle.read_u32::<LittleEndian>().unwrap();
 
         let entry = GMAEntry {
             name: entry_name,
             size: entry_size as u64,
+            crc: entry_crc,
             contents: None
         };
         entries.push(entry);
