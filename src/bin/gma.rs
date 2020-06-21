@@ -3,7 +3,8 @@ use steamws::gma;
 use std::io;
 use std::fs;
 use std::fs::File;
-use std::path::{Component, Path};
+use std::io::Read;
+use std::path::{Component, Path, PathBuf};
 use clap::Clap;
 use globset::Glob;
 
@@ -28,6 +29,9 @@ enum SubCommand {
     /// Unpacks gma to a folder
     #[clap()]
     Unpack(UnpackCommand),
+    /// Packs folder into a gma file
+    #[clap()]
+    Pack(PackCommand),
 }
 
 #[derive(Clap)]
@@ -58,6 +62,20 @@ struct UnpackCommand {
     output_folder: String,
     /// File pattern of files to unpack, e.g. "**.lua"
     pattern: Option<String>,
+}
+
+#[derive(Clap)]
+struct PackCommand {
+    /// Source folder
+    folder: String,
+
+    /// Addon title (included in the gma itself)
+    #[clap(short, long)]
+    title: String,
+
+    /// Addon description (included in the gma itself)
+    #[clap(short, long)]
+    description: String,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -154,5 +172,57 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             Ok(())
         },
+        SubCommand::Pack(t) => {
+
+            fn visit_dir(base_path: &Path, visit: &Path) -> Result<Vec<(String, PathBuf)>, io::Error> {
+                if visit.is_dir() {
+                    Ok(
+                        fs::read_dir(visit)?
+                        .flat_map(|entry| {
+                            let okentry = entry.unwrap();
+                            let path = okentry.path();
+                            if path.is_dir() {
+                                visit_dir(&base_path.join(okentry.file_name()), &path).unwrap()
+                            } else {
+                                vec!((base_path.join(okentry.file_name()).to_str().unwrap().to_owned(), path))
+                            }
+                        })
+                        .collect()
+                    )
+                } else {
+                    Ok(vec!())
+                }
+            }
+            let entries = visit_dir(Path::new(""), Path::new(&t.folder))
+                .unwrap()
+                .iter()
+                .map(|(name, path)| {
+                    let mut f = File::open(&path).expect("no file found");
+                    let metadata = fs::metadata(&path).expect("unable to read metadata");
+                    let mut buffer = vec![0; metadata.len() as usize];
+                    f.read(&mut buffer).expect("buffer overflow");
+
+                    gma::GMAEntry {
+                        name: name.to_string(),
+                        size: buffer.len() as u64,
+                        crc: 0,
+                        contents: Some(buffer)
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            let g = gma::GMAFile {
+                name: t.title,
+                description: t.description,
+                author: "Author Name".to_string(),
+                entries: entries
+            };
+
+            let stdout = io::stdout();
+            let mut stdout = stdout.lock();
+            gma::write_gma(&g, &mut stdout)?;
+
+            Ok(())
+        }
     }
 }

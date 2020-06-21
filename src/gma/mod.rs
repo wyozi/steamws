@@ -1,7 +1,13 @@
 mod read;
 pub use read::read_gma;
 
+mod write;
+pub use write::write_gma;
+
 use serde::Deserialize;
+
+pub const GMA_HEADER: &'static [u8; 4] = b"GMAD";
+pub const SUPPORTED_GMA_VERSION: u8 = 3;
 
 pub struct GMAFile {
     pub name: String,

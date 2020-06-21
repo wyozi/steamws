@@ -1,9 +1,7 @@
-use super::{GMAFile, GMAEntry};
+use super::{GMAFile, GMAEntry, SUPPORTED_GMA_VERSION, GMA_HEADER};
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::io;
 use std::io::{BufRead, BufReader, Read};
-
-const SUPPORTED_GMA_VERSION: u8 = 3;
 
 fn read_nt_string<R: Read + BufRead>(handle: &mut R) -> String {
     let mut buf = Vec::new();
@@ -24,7 +22,7 @@ pub fn read_gma<F>(input: &str, read_entry: F) -> GMAFile where
     let mut magic_buf = [0; 4];
     handle.read_exact(&mut magic_buf).unwrap();
 
-    if &magic_buf != b"GMAD" {
+    if &magic_buf != GMA_HEADER {
         eprintln!("header not GMAD??");
         std::process::exit(1);
     }
