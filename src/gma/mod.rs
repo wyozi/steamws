@@ -27,7 +27,7 @@ pub struct GMAEntry {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AddonJson {
     pub title: String,
-    pub description: String,
+    pub description: Option<String>,
     #[serde(rename = "type")]
 	pub addon_type: String,
     pub tags: Vec<String>,
@@ -68,7 +68,7 @@ impl AddonJson {
 /// Subset of addon.json properties that are stored (by convention) in gma description field
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GMADescriptionJson {
-    pub description: String,
+    pub description: Option<String>,
     #[serde(rename = "type")]
 	pub addon_type: String,
     pub tags: Vec<String>,
