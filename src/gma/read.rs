@@ -1,6 +1,7 @@
 use super::{GMAFile, GMAEntry, SUPPORTED_GMA_VERSION, GMA_HEADER};
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::io;
+use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 
 fn read_nt_string<R: Read + BufRead>(handle: &mut R) -> String {
@@ -16,8 +17,15 @@ fn read_nt_string<R: Read + BufRead>(handle: &mut R) -> String {
 pub fn read_gma<F>(input: &str, read_entry: F) -> GMAFile where
     F: Fn(&str) -> bool {
 
-    let stdin = io::stdin();
-    let mut handle = BufReader::new(stdin.lock());
+    let mut handle: Box<dyn BufRead> = match input {
+        "" | "-" => {
+            Box::new(BufReader::new(io::stdin()))
+        },
+        x => {
+            let f = File::open(x).unwrap();
+            Box::new(BufReader::new(f))
+        }
+    };
     
     let mut magic_buf = [0; 4];
     handle.read_exact(&mut magic_buf).unwrap();
