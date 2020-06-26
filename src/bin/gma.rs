@@ -45,7 +45,7 @@ struct ListCommand {
     /// Source gma. Either a file path or - for stdin
     input: String,
 
-    /// Include size of each entry in the listing
+    /// Sorts the output and includes extra metadata
     #[clap(short)]
     long_format: bool
 }
@@ -113,15 +113,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         }
         SubCommand::List(t) => {
-            let gma = gma::read_gma(&t.input, |_| false);
+            if t.long_format {
+                let gma = gma::read_gma(&t.input, |name| {
+                    name.ends_with(".vtf")
+                });
+    
+                let mut entries = gma.entries;
+                entries.sort_by(|a, b| a.size.cmp(&b.size));
+    
+                for entry in entries {
+                    print!("{:8}", human_readable_filesize(entry.size));
+                    print!("{:40}", entry.name);
+                    
+                    if cfg!(feature = "vtf") && entry.name.ends_with(".vtf") {
+                        let mut contents = entry.contents.unwrap();
 
-            let mut entries = gma.entries;
-            entries.sort_by(|a, b| a.size.cmp(&b.size));
+                        let vtf = vtf::from_bytes(&mut contents)?;
+                        let header = vtf.header;
 
-            for entry in entries {
-                if t.long_format {
-                    println!("{:8} {}", human_readable_filesize(entry.size), entry.name);
-                } else {
+                        //println!("{:?}", header);
+                        print!("[VTF{}.{}: Highres {:>4}x{:<4} {:10} Lowres {:>4}x{:<4} {:10}]",
+                            header.version[0],
+                            header.version[1],
+                            header.width,
+                            header.height,
+                            header.highres_image_format,
+                            header.lowres_image_width,
+                            header.lowres_image_height,
+                            header.lowres_image_format,
+                        );
+                    }
+
+                    println!();
+                }
+            } else {
+                let gma = gma::read_gma(&t.input, |_| false);
+    
+                for entry in gma.entries {
                     println!("{}", entry.name);
                 }
             }
