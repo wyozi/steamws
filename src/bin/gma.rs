@@ -21,7 +21,7 @@ enum SubCommand {
     #[clap()]
     Info(InfoCommand),
     /// Lists files in given gma
-    #[clap()]
+    #[clap(alias = "ls")]
     List(ListCommand),
     /// Prints files in given gma
     #[clap()]
