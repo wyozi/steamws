@@ -44,6 +44,10 @@ struct InfoCommand {
 struct ListCommand {
     /// Source gma. Either a file path or - for stdin
     input: String,
+
+    /// Include size of each entry in the listing
+    #[clap(short)]
+    long_format: bool
 }
 
 #[derive(Clap)]
@@ -82,6 +86,16 @@ struct PackCommand {
     description: Option<String>,
 }
 
+fn human_readable_filesize(size: u64) -> String {
+    if size < 1000 {
+        format!("{}B", size)
+    } else if size < 1_000_000 {
+        format!("{:.2}K", size as f64 / 1_000f64)
+    } else {
+        format!("{:.2}M", size as f64 / 1_000_000f64)
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts: Opts = Opts::parse();
 
@@ -100,8 +114,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         SubCommand::List(t) => {
             let gma = gma::read_gma(&t.input, |_| false);
-            for entry in gma.entries {
-                println!("{}", entry.name);
+
+            let mut entries = gma.entries;
+            entries.sort_by(|a, b| a.size.cmp(&b.size));
+
+            for entry in entries {
+                if t.long_format {
+                    println!("{:8} {}", human_readable_filesize(entry.size), entry.name);
+                } else {
+                    println!("{}", entry.name);
+                }
             }
 
             Ok(())
