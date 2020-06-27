@@ -9,7 +9,7 @@ use err_derive::Error;
 
 #[derive(Debug)]
 pub struct PartialMDL {
-    name: String,
+    pub name: String,
     pub materials: Vec<String>
 }
 

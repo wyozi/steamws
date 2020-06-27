@@ -24,4 +24,6 @@ rust-lzma = "0.5"
 globset = "0.4"
 tempfile = "3"
 err-derive = "0.2"
+regex = "1"
+lazy_static = "1"
 vtf = { version = "0.1", optional = true }
