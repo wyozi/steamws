@@ -1,0 +1,63 @@
+use std::fs::File;
+use std::path::{Path, PathBuf};
+use std::io::Read;
+
+mod binary;
+
+pub struct MDLFile {
+    path: PathBuf,
+    partial: binary::PartialMDL
+}
+impl MDLFile {
+    pub fn open(p: &Path) -> Result<MDLFile, Box<dyn std::error::Error>> {
+        let mut file = File::open(p)?;
+
+        let mut buf = Vec::new();
+        file.read_to_end(&mut buf)?;
+        
+        let partial = binary::read(&mut buf)?;
+
+        Ok(
+            MDLFile {
+                path: p.to_path_buf(),
+                partial: partial,
+            }
+        )
+    }
+
+    fn assets_path(&self) -> &Path {
+        let parent_traverse_count = self.partial.name.matches("/").count() + 1;
+        
+        let mut assets_path = self.path.as_path();
+        for _ in 0..=parent_traverse_count {
+            assets_path = assets_path.parent().unwrap();
+        }
+        assets_path
+    }
+
+    pub fn dependencies(&self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        let assets_path = self.assets_path();
+        let materials_path = assets_path.join("materials");
+
+        let mut deps = vec!();
+
+        for mat in &self.partial.materials {
+            let cleaned_up = mat.replace("\\", "/");
+            let mat_path = materials_path.join(format!("{}.vmt", cleaned_up));
+            if mat_path.exists() {
+                deps.push(mat_path.to_str().unwrap().to_owned());
+                let vmt = crate::vmt::read(&mat_path)?;
+                
+                for tex in vmt.textures {
+                    let cleaned_up = tex.replace("\\", "/");
+                    let tex_path = materials_path.join(format!("{}.vtf", cleaned_up));
+                    if tex_path.exists() {
+                        deps.push(tex_path.to_str().unwrap().to_owned());
+                    }
+                }
+            }
+        }
+
+        Ok(deps)
+    }
+}
