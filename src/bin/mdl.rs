@@ -27,9 +27,19 @@ enum SubCommand {
 
     /// Copies given .mdl with dependencies to target path
     /// 
-    /// Maintains the folder structure
+    /// Maintains the folder structure, including materials.
+    /// For that reason, the target directory should be one
+    /// with "models" and "materials" folders
     #[clap(alias = "cp")]
-    Copy(CopyCommand)
+    Copy(CopyCommand),
+
+    /// Removes given .mdl (and optionally its dependencies)
+    /// 
+    /// By default this command removes just direct dependencies
+    /// (the files references the .mdl in the same models folder).
+    /// This behavior can be changed with the deps flag
+    #[clap(alias = "rm")]
+    Remove(RemoveCommand)
 }
 
 #[derive(Clap)]
@@ -53,6 +63,24 @@ struct CopyCommand {
     dry_run: bool
 }
 
+#[derive(Clap)]
+struct RemoveCommand {
+    /// Mdl file to remove
+    input: String,
+
+    /// Also remove in-direct dependencies.
+    /// 
+    /// In-direct assets are the ones that other models may rely on,
+    /// such as materials and textures.
+    #[clap(long, short)]
+    deps: bool,
+
+    /// Prints what the command would remove if executed without
+    /// this flag
+    #[clap(long, short = "n")]
+    dry_run: bool
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts: Opts = Opts::parse();
 
@@ -62,7 +90,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let mdl = steamws::mdl::MDLFile::open(path)?;
             for dep in mdl.dependencies()? {
-                println!("{}", dep.to_str().unwrap());
+                println!("{}", dep.path().to_str().unwrap());
             }
 
             Ok(())
@@ -76,8 +104,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mdl = steamws::mdl::MDLFile::open(path)?;
             let assets_path = mdl.assets_path();
             for dep in &mdl.dependencies()? {
-                let bare_dep = dep.strip_prefix(assets_path)?.to_path_buf();
-                copy_map.push((dep.to_path_buf(), out_path.join(bare_dep)));
+                let bare_dep = dep.path().strip_prefix(assets_path)?.to_path_buf();
+                copy_map.push((dep.path().to_path_buf(), out_path.join(bare_dep)));
             }
 
             if t.dry_run {
@@ -94,6 +122,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             Ok(())
-        }
+        },
+        SubCommand::Remove(t) => {
+            let path = Path::new(&t.input);
+            let mdl = steamws::mdl::MDLFile::open(path)?;
+            let assets_path = mdl.assets_path();
+
+            if t.dry_run {
+                println!("Would remove the following files (dry run): ");
+                println!();
+            }
+
+            for dep in &mdl.dependencies()? {
+                if !t.deps && !dep.is_direct() {
+                    continue;
+                }
+
+                println!("{}", dep.path().display());
+
+                if !t.dry_run {
+                    fs::remove_file(dep.path())?;
+                }
+            }
+
+            Ok(())
+        },
     }
 }
