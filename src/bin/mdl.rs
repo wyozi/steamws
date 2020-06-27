@@ -17,7 +17,8 @@ enum SubCommand {
     /// Lists all dependencies of this .mdl
     /// 
     /// Namely, this will return a list of paths that
-    /// are required for the .mdl to function.
+    /// are required for the .mdl to function, including the
+    /// .mdl file itself.
     /// 
     /// The paths are returned relative to the working directory
     #[clap(alias = "deps")]

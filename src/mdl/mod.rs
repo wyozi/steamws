@@ -1,12 +1,13 @@
+use std::fs;
 use std::fs::File;
-use std::path::{Path, PathBuf};
 use std::io::Read;
+use std::path::{Path, PathBuf};
 
 mod binary;
 
 pub struct MDLFile {
     path: PathBuf,
-    partial: binary::PartialMDL
+    partial: binary::PartialMDL,
 }
 impl MDLFile {
     pub fn open(p: &Path) -> Result<MDLFile, Box<dyn std::error::Error>> {
@@ -14,20 +15,16 @@ impl MDLFile {
 
         let mut buf = Vec::new();
         file.read_to_end(&mut buf)?;
-        
         let partial = binary::read(&mut buf)?;
 
-        Ok(
-            MDLFile {
-                path: p.to_path_buf(),
-                partial: partial,
-            }
-        )
+        Ok(MDLFile {
+            path: p.to_path_buf(),
+            partial: partial,
+        })
     }
 
     fn assets_path(&self) -> &Path {
         let parent_traverse_count = self.partial.name.matches("/").count() + 1;
-        
         let mut assets_path = self.path.as_path();
         for _ in 0..=parent_traverse_count {
             assets_path = assets_path.parent().unwrap();
@@ -39,7 +36,20 @@ impl MDLFile {
         let assets_path = self.assets_path();
         let materials_path = assets_path.join("materials");
 
-        let mut deps = vec!();
+        let mut deps = vec![];
+
+        deps.push(self.path.to_str().unwrap().to_owned());
+        let mdl_containing_folder = self.path.parent().unwrap();
+        let mdl_stem = self.path.file_stem().unwrap().to_str().unwrap();
+        for entry in fs::read_dir(mdl_containing_folder)? {
+            let path = entry?.path();
+            if path.is_file()
+                && path.file_name().unwrap().to_str().unwrap().starts_with(mdl_stem)
+                && path != self.path
+            {
+                deps.push(path.to_str().unwrap().to_owned());
+            }
+        }
 
         for mat in &self.partial.materials {
             let cleaned_up = mat.replace("\\", "/");
@@ -47,7 +57,6 @@ impl MDLFile {
             if mat_path.exists() {
                 deps.push(mat_path.to_str().unwrap().to_owned());
                 let vmt = crate::vmt::read(&mat_path)?;
-                
                 for tex in vmt.textures {
                     let cleaned_up = tex.replace("\\", "/");
                     let tex_path = materials_path.join(format!("{}.vtf", cleaned_up));
