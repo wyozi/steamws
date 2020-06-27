@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let mdl = steamws::mdl::MDLFile::open(path)?;
             for dep in mdl.dependencies()? {
-                println!("{}", dep);
+                println!("{}", dep.to_str().unwrap());
             }
 
             Ok(())
