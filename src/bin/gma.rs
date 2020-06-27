@@ -86,16 +86,6 @@ struct PackCommand {
     description: Option<String>,
 }
 
-fn human_readable_filesize(size: u64) -> String {
-    if size < 1000 {
-        format!("{}B", size)
-    } else if size < 1_000_000 {
-        format!("{:.2}K", size as f64 / 1_000f64)
-    } else {
-        format!("{:.2}M", size as f64 / 1_000_000f64)
-    }
-}
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts: Opts = Opts::parse();
 
@@ -122,7 +112,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 entries.sort_by(|a, b| a.size.cmp(&b.size));
     
                 for entry in entries {
-                    print!("{:8}", human_readable_filesize(entry.size));
+                    print!("{:8}", steamws::human_readable_size(entry.size));
                     print!("{:40}", entry.name);
                     
                     if cfg!(feature = "vtf") && entry.name.ends_with(".vtf") {

@@ -122,10 +122,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     size += fs::metadata(from).ok().map(|m| m.len()).unwrap_or(0);
                 }
             }
-            
+
             if t.dry_run {
                 println!();
-                println!("Totaling {} bytes in size", size);
+                println!("Totaling {} in size", steamws::human_readable_size(size));
             }
 
             Ok(())
@@ -157,7 +157,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             if t.dry_run {
                 println!();
-                println!("Totaling {} bytes in size", size);
+                println!("Totaling {} in size", steamws::human_readable_size(size));
             }
 
             Ok(())
