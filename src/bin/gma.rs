@@ -105,7 +105,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         SubCommand::List(t) => {
             if t.long_format {
                 let gma = gma::read_gma(&t.input, |name| {
-                    name.ends_with(".vtf")
+                    cfg!(feature = "vtf") && name.ends_with(".vtf")
                 });
     
                 let mut entries = gma.entries;
@@ -115,23 +115,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     print!("{:8}", steamws::human_readable_size(entry.size));
                     print!("{:40}", entry.name);
                     
-                    if cfg!(feature = "vtf") && entry.name.ends_with(".vtf") {
+                    if cfg!(feature = "vtf") && entry.name.ends_with(".vtf") && entry.contents.is_some() {
                         let mut contents = entry.contents.unwrap();
 
-                        let vtf = vtf::from_bytes(&mut contents)?;
-                        let header = vtf.header;
+                        if let Ok(vtf) = vtf::from_bytes(&mut contents) {
+                            let header = vtf.header;
 
-                        //println!("{:?}", header);
-                        print!("[VTF{}.{}: Highres {:>4}x{:<4} {:10} Lowres {:>4}x{:<4} {:10}]",
-                            header.version[0],
-                            header.version[1],
-                            header.width,
-                            header.height,
-                            header.highres_image_format,
-                            header.lowres_image_width,
-                            header.lowres_image_height,
-                            header.lowres_image_format,
-                        );
+                            //println!("{:?}", header);
+                            print!("[VTF{}.{}: Highres {:>4}x{:<4} {:10} Lowres {:>4}x{:<4} {:10}]",
+                                header.version[0],
+                                header.version[1],
+                                header.width,
+                                header.height,
+                                header.highres_image_format,
+                                header.lowres_image_width,
+                                header.lowres_image_height,
+                                header.lowres_image_format,
+                            );
+                        }
                     }
 
                     println!();
