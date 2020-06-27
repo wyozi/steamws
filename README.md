@@ -1,11 +1,13 @@
 # steamws
 
-Set of binaries for working with Steam Workshop. Utilizes Steamworks, so Steam must be running for this to work.
+Set of binaries for working with Steam Workshop and some game formats. Utilizes Steamworks, so Steam must be running for this to work.
 
 Included are
 
 - `workshop` for downloading and inspecting workshop items
 - `gma` for working with Garry's Mod Addon files
+- `mdl` for working with Source Engine model (.mdl) files
+- `vtf` for working with Valve Texture Format (.vtf) files
 
 ```bash
 # print metadata about workshop
