@@ -111,12 +111,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!();
             }
 
+            let mut size = 0;
+
             for (from, to) in copy_map {
                 println!("{} -> {}", from.display(), to.display());
                 if !t.dry_run {
                     fs::create_dir_all(&to.parent().unwrap())?;
                     fs::copy(&from, &to)?;
+                } else {
+                    size += fs::metadata(from).ok().map(|m| m.len()).unwrap_or(0);
                 }
+            }
+            
+            if t.dry_run {
+                println!();
+                println!("Totaling {} bytes in size", size);
             }
 
             Ok(())
