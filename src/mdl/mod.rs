@@ -47,7 +47,9 @@ impl MDLFile {
     }
 
     pub fn assets_path(&self) -> &Path {
-        let parent_traverse_count = self.partial.name.matches("/").count() + 1;
+        let cleaned_name = self.partial.name.replace("\\", "/");
+
+        let parent_traverse_count = cleaned_name.matches("/").count() + 1;
         let mut assets_path = self.path.as_path();
         for _ in 0..=parent_traverse_count {
             assets_path = assets_path.parent().unwrap();
