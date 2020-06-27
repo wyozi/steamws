@@ -1,12 +1,4 @@
-use byteorder::{LittleEndian, ReadBytesExt};
-use err_derive::Error;
-use std::ffi::CStr;
 use std::fs;
-use std::io;
-use std::io::Cursor;
-use std::io::Read;
-use std::io::Seek;
-use std::io::SeekFrom;
 use std::path::Path;
 use std::collections::HashSet;
 

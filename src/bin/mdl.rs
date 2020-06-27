@@ -1,8 +1,6 @@
-use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::vec::Vec;
 use std::fs;
-use std::io::Read;
 
 use clap::Clap;
 
@@ -126,7 +124,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         SubCommand::Remove(t) => {
             let path = Path::new(&t.input);
             let mdl = steamws::mdl::MDLFile::open(path)?;
-            let assets_path = mdl.assets_path();
 
             if t.dry_run {
                 println!("Would remove the following files (dry run): ");
