@@ -34,7 +34,13 @@ pub fn read(path: &Path) -> Result<VMT, Box<dyn std::error::Error>> {
 
     let textures: Vec<String> = RE.captures_iter(&string)
         .filter(|c| KEYS.contains(&c["key"]))
-        .map(|c| c["value"].trim().to_owned())
+        .map(|c| {
+            c["value"]
+            .trim()
+            .trim_matches('"')
+            .trim()
+            .to_owned()
+        })
         .collect();
     Ok(VMT {
         textures: textures
