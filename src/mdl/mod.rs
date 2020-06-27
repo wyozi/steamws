@@ -2,6 +2,7 @@ use std::fs;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::collections::HashSet;
 
 mod binary;
 
@@ -76,6 +77,7 @@ impl MDLFile {
             }
         }
 
+        let mut discovered_textures = HashSet::new();
         for mat in &self.partial.materials {
             let cleaned_up = mat.replace("\\", "/");
             let mat_path = materials_path.join(format!("{}.vmt", cleaned_up));
@@ -85,8 +87,9 @@ impl MDLFile {
                 for tex in vmt.textures {
                     let cleaned_up = tex.replace("\\", "/");
                     let tex_path = materials_path.join(format!("{}.vtf", cleaned_up));
-                    if tex_path.exists() {
+                    if tex_path.exists() && !discovered_textures.contains(&tex_path) {
                         deps.push(MDLDependency::Texture(tex_path.to_path_buf()));
+                        discovered_textures.insert(tex_path);
                     }
                 }
             }

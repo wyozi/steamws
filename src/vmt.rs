@@ -6,6 +6,7 @@ use lazy_static::lazy_static;
 use regex::RegexBuilder;
 use regex::Regex;
 
+use std::iter::FromIterator;
 
 #[derive(Debug)]
 pub struct VMT {
@@ -32,7 +33,7 @@ pub fn read(path: &Path) -> Result<VMT, Box<dyn std::error::Error>> {
     }
     let string = fs::read_to_string(path)?;
 
-    let textures: Vec<String> = RE.captures_iter(&string)
+    let textures: HashSet<String> = RE.captures_iter(&string)
         .filter(|c| KEYS.contains(&c["key"]))
         .map(|c| {
             c["value"]
@@ -43,6 +44,6 @@ pub fn read(path: &Path) -> Result<VMT, Box<dyn std::error::Error>> {
         })
         .collect();
     Ok(VMT {
-        textures: textures
+        textures: Vec::from_iter(textures)
     })
 }
