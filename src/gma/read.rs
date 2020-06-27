@@ -84,7 +84,9 @@ pub fn read_gma<F>(input: &str, read_entry: F) -> GMAFile where
         }
     }
 
-    let _addon_crc = handle.read_u32::<LittleEndian>().unwrap();
+    // Apparently some gma just completely omit the addon CRC from the end
+    // Hence, we shouldn't unwrap the following since it may fail
+    let _addon_crc = handle.read_u32::<LittleEndian>();
 
     let remaining = io::copy(&mut handle, &mut io::sink()).unwrap();
     if remaining != 0 {
