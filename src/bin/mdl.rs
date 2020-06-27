@@ -130,6 +130,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!();
             }
 
+            let mut size = 0;
+
             for dep in &mdl.dependencies()? {
                 if !t.deps && !dep.is_direct() {
                     continue;
@@ -139,7 +141,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 if !t.dry_run {
                     fs::remove_file(dep.path())?;
+                } else {
+                    size += fs::metadata(dep.path()).ok().map(|m| m.len()).unwrap_or(0);
                 }
+            }
+
+            if t.dry_run {
+                println!();
+                println!("Totaling {} bytes in size", size);
             }
 
             Ok(())
