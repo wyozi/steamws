@@ -148,11 +148,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         }
         SubCommand::Cat(t) => {
-            if t.input != "-" {
-                eprintln!("only - (stdin) argument is supported for input currently");
-                std::process::exit(1);
-            }
-
             let does_match: Box<dyn Fn(&str) -> bool> = match t.pattern {
                 Some(src) => {
                     let glob = Glob::new(&src).unwrap().compile_matcher();
@@ -175,11 +170,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         }
         SubCommand::Unpack(t) => {
-            if t.input != "-" {
-                eprintln!("only - (stdin) argument is supported for input currently");
-                std::process::exit(1);
-            }
-
             let output_path = Path::new(&t.output_folder);
             if !output_path.exists() {
                 fs::create_dir(output_path)?;
