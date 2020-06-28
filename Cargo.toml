@@ -10,14 +10,16 @@ license = "MIT"
 edition = "2018"
 
 [features]
-default = ["vtf"]
+default = ["workshop", "vtf"]
+
+workshop = ["steamworks"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 reqwest = { version = "0.10", features = ["json"] }
 tokio = { version = "0.2", features = ["full"] }
-steamworks = "0.6"
+steamworks = { version = "0.6", optional = true }
 byteorder = "1"
 clap = "3.0.0-beta.1"
 rust-lzma = "0.5"
@@ -27,3 +29,17 @@ err-derive = "0.2"
 regex = "1"
 lazy_static = "1"
 vtf = { version = "0.1", optional = true }
+
+[[bin]]
+name = "gma"
+
+[[bin]]
+name = "mdl"
+
+[[bin]]
+name = "vtf"
+required-features = ["vtf"]
+
+[[bin]]
+name = "workshop"
+required-features = ["workshop"]

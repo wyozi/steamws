@@ -133,7 +133,7 @@ impl From<steamworks::SteamError> for WrappedSteamError {
 type CreateResult = Result<(PublishedFileId, bool), SteamError>;
 fn create<M: steamworks::Manager>(scl: &steamworks::SingleClient<M>, ugc: &steamworks::UGC<M>, app_id: AppId) -> CreateResult {
     let data = Arc::new(Mutex::new(None));
-    
+
     {
         let c_data = data.clone();
         ugc.create_item(app_id, steamworks::FileType::Community, move |res| {

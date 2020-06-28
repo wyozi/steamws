@@ -1,0 +1,28 @@
+on: push
+
+name: Build binaries
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - i686-pc-windows-gnu
+          - i686-unknown-linux-gnu
+          - x86_64-apple-darwin
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --no-default-features --features "vtf" --target=${{ matrix.target }}
+      - run: |
+          ls -R target

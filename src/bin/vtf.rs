@@ -25,12 +25,6 @@ struct InfoCommand {
     input: String,
 }
 
-#[cfg(not(feature = "vtf"))]
-fn main() {
-    eprintln!("Enable vtf features in Cargo");
-}
-
-#[cfg(feature = "vtf")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts: Opts = Opts::parse();
 

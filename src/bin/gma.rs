@@ -114,8 +114,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 for entry in entries {
                     print!("{:8}", steamws::human_readable_size(entry.size));
                     print!("{:40}", entry.name);
-                    
-                    if cfg!(feature = "vtf") && entry.name.ends_with(".vtf") && entry.contents.is_some() {
+
+                    #[cfg(feature = "vtf")]
+                    if entry.name.ends_with(".vtf") && entry.contents.is_some() {
                         let mut contents = entry.contents.unwrap();
 
                         if let Ok(vtf) = vtf::from_bytes(&mut contents) {
