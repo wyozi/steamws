@@ -13,6 +13,10 @@ jobs:
           - i686-unknown-linux-gnu
     steps:
       - uses: actions/checkout@v2
+      - run: |
+          sudo dpkg --add-architecture i386
+          sudo apt update
+          sudo apt install liblzma-dev:i386
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
