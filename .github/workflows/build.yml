@@ -1,4 +1,4 @@
-on: release
+on: push
 
 name: Build binaries
 
@@ -8,24 +8,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target:
-          - i686-pc-windows-gnu
-          - i686-unknown-linux-gnu
+        os: [macos-latest, windows-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v2
-      - run: |
-          sudo dpkg --add-architecture i386
-          sudo apt update
-          sudo apt install liblzma-dev:i386
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: ${{ matrix.target }}
           override: true
       - uses: actions-rs/cargo@v1
         with:
-          use-cross: true
           command: build
-          args: --release --no-default-features --features "vtf" --target=${{ matrix.target }}
+          args: --release --no-default-features --features "vtf bsp"
       - run: |
           ls -R target

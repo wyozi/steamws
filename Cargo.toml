@@ -11,9 +11,7 @@ edition = "2018"
 
 [features]
 default = ["workshop", "vtf", "bsp"]
-
 workshop = ["steamworks", "rust-lzma"]
-
 bsp = ["zip"]
 
 [dependencies]
