@@ -40,6 +40,23 @@ workshop get 426998109 | gma cat - | grep http
 workshop get 2137434632 | gma unpack - out && echo `date` > out/date.txt && gma pack out | workshop update 2137434632 -
 ```
 
+## Quickstart
+
+Grab a binary for your OS from the latest release:
+https://github.com/wyozi/steamws/releases/latest/
+
+If you're in CI environment, you can use this URL for the binary:
+https://github.com/wyozi/steamws/releases/latest/download/gma_ubuntu-latest
+
+For example:
+```
+curl -L https://github.com/wyozi/steamws/releases/latest/download/bsp_ubuntu-latest > bsp
+chmod +x bsp
+
+# Search for cubemap textures in map Pakfile
+./bsp ls-pak mymap.bsp | grep -E "c\-?[0-9]+_\-?[0-9]+_\-?[0-9]+\.vtf"
+```
+
 ## Compiling
 
 Compile with [Steamworks SDK](https://partner.steamgames.com/downloads/steamworks_sdk.zip), e.g. `STEAM_SDK_LOCATION=~/Downloads/steam_sdk cargo build`
