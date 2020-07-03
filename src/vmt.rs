@@ -15,7 +15,7 @@ pub struct VMT {
 
 pub fn read(path: &Path) -> Result<VMT, Box<dyn std::error::Error>> {
     lazy_static! {
-        static ref RE: Regex = RegexBuilder::new(r"\$(?P<key>\w+)\s+(?P<value>.*)$")
+        static ref RE: Regex = RegexBuilder::new(r#""?\$(?P<key>\w+)"?\s+(?P<value>.*)$"#)
             .multi_line(true)
             .build()
             .unwrap();

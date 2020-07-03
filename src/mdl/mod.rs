@@ -79,13 +79,13 @@ impl MDLFile {
 
         let mut discovered_textures = HashSet::new();
         for mat in &self.partial.materials {
-            let cleaned_up = mat.replace("\\", "/");
+            let cleaned_up = mat.replace("\\", "/").to_lowercase();
             let mat_path = materials_path.join(format!("{}.vmt", cleaned_up));
             if mat_path.exists() {
                 deps.push(MDLDependency::Material(mat_path.to_path_buf()));
                 let vmt = crate::vmt::read(&mat_path)?;
                 for tex in vmt.textures {
-                    let cleaned_up = tex.replace("\\", "/");
+                    let cleaned_up = tex.replace("\\", "/").to_lowercase();
                     let tex_path = materials_path.join(format!("{}.vtf", cleaned_up));
                     if tex_path.exists() && !discovered_textures.contains(&tex_path) {
                         deps.push(MDLDependency::Texture(tex_path.to_path_buf()));
