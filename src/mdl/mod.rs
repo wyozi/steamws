@@ -58,6 +58,17 @@ impl MDLFile {
         assets_path
     }
 
+    fn discover_texture_path(&self, base_path: &Path, tex_name: &str) -> Option<PathBuf> {
+        for dir in &self.partial.texture_dirs {
+            let s = &format!("{}{}.vmt", dir, tex_name).replace("\\", "/").to_lowercase();
+            let path = base_path.join(s);
+            if path.exists() {
+                return Some(path.to_path_buf());
+            }
+        }
+        None
+    }
+
     pub fn dependencies(&self) -> Result<Vec<MDLDependency>, Box<dyn std::error::Error>> {
         let assets_path = self.assets_path();
         let materials_path = assets_path.join("materials");
@@ -78,10 +89,10 @@ impl MDLFile {
         }
 
         let mut discovered_textures = HashSet::new();
-        for mat in &self.partial.materials {
-            let cleaned_up = mat.replace("\\", "/").to_lowercase();
-            let mat_path = materials_path.join(format!("{}.vmt", cleaned_up));
-            if mat_path.exists() {
+        for mat_name in &self.partial.texture_names {
+            let discovered = self.discover_texture_path(&materials_path, mat_name);
+
+            if let Some(mat_path) = discovered {
                 deps.push(MDLDependency::Material(mat_path.to_path_buf()));
                 let vmt = crate::vmt::read(&mat_path)?;
                 for tex in vmt.textures {
@@ -96,5 +107,35 @@ impl MDLFile {
         }
 
         Ok(deps)
+    }
+
+    /// Return each skin as a vector of simple material names
+    pub fn skins_with_material_names(&self) -> Vec<Vec<String>> {
+        self.partial.skins
+            .iter()
+            .map(|s| {
+                s.0.iter()
+                    .map(|slot| self.partial.texture_names[*slot as usize].clone())
+                    .collect()
+            })
+            .collect()
+    }
+
+    /// Return each skin as a vector of absolute paths to the materials
+    pub fn skins_with_material_paths(&self) -> Vec<Vec<Option<PathBuf>>> {
+        let assets_path = self.assets_path();
+        let materials_path = assets_path.join("materials");
+
+        self.partial.skins
+            .iter()
+            .map(|s| {
+                s.0.iter()
+                    .map(|slot| {
+                        let tex_name = &self.partial.texture_names[*slot as usize];
+                        self.discover_texture_path(&materials_path, &tex_name)
+                    })
+                    .collect()
+            })
+            .collect()
     }
 }

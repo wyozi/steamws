@@ -10,8 +10,17 @@ use err_derive::Error;
 #[derive(Debug)]
 pub struct PartialMDL {
     pub name: String,
-    pub materials: Vec<String>
+
+    pub texture_names: Vec<String>,
+    pub texture_dirs: Vec<String>,
+
+    pub skin_count: u32,
+    pub texture_slot_count: u32,
+    pub skins: Vec<MDLSkin>
 }
+
+#[derive(Debug)]
+pub struct MDLSkin(pub Vec<u16>);
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -61,6 +70,10 @@ pub fn read(bytes: &mut Vec<u8>) -> Result<PartialMDL, Box<dyn std::error::Error
     let texturedir_count = reader.read_u32::<LittleEndian>()?;
     let texturedir_offset = reader.read_u32::<LittleEndian>()?;
 
+    let skinreference_count = reader.read_u32::<LittleEndian>()?;
+    let skinrfamily_count = reader.read_u32::<LittleEndian>()?;
+    let skinreference_index = reader.read_u32::<LittleEndian>()?;
+
     let mut texture_names = vec!();
     for i in 0..texture_count {
         let off: u64 = (texture_offset + i*16*4).into();
@@ -73,7 +86,7 @@ pub fn read(bytes: &mut Vec<u8>) -> Result<PartialMDL, Box<dyn std::error::Error
         texture_names.push(tex_name);
     }
 
-    let mut texture_paths = vec!();
+    let mut texture_dirs = vec!();
     for i in 0..texturedir_count {
         let off: u64 = (texturedir_offset + i*4).into();
         reader.seek(SeekFrom::Start(off))?;
@@ -83,13 +96,29 @@ pub fn read(bytes: &mut Vec<u8>) -> Result<PartialMDL, Box<dyn std::error::Error
 
         let texdir_name = reader.read_padded_cstr(256)?;
 
-        for tex in &texture_names {
-            texture_paths.push(format!("{}{}", texdir_name, tex));
+        texture_dirs.push(texdir_name);
+    }
+
+    reader.seek(SeekFrom::Start(skinreference_index.into()))?;
+    // https://gitlab.h08.us/puff/project-spahget/-/blob/fb558f2c425c63623180f864192442b766218e44/mdl/valve.py#L243
+    let table_width = skinreference_count / skinrfamily_count;
+
+    let mut skins = vec!();
+    for _skin in 0..skinreference_count {
+        let mut skin = vec!();
+        for _replaced_tex_id in 0..table_width {
+            let texture_id = reader.read_u16::<LittleEndian>()?;
+            skin.push(texture_id);
         }
+        skins.push(MDLSkin(skin));
     }
 
     Ok(PartialMDL {
         name: name,
-        materials: texture_paths
+        texture_names: texture_names,
+        texture_dirs: texture_dirs,
+        skin_count: skinrfamily_count,
+        texture_slot_count: table_width,
+        skins: skins
     })
 }

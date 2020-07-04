@@ -23,6 +23,10 @@ enum SubCommand {
     #[clap(alias = "deps")]
     Dependencies(DependenciesCommand),
 
+    /// List skins in this .mdl
+    #[clap()]
+    Skins(SkinsCommand),
+
     /// Copies given .mdl with dependencies to target path
     ///
     /// Maintains the folder structure, including materials.
@@ -42,6 +46,12 @@ enum SubCommand {
 
 #[derive(Clap)]
 struct DependenciesCommand {
+    /// Source mdl
+    input: String,
+}
+
+#[derive(Clap)]
+struct SkinsCommand {
     /// Source mdl
     input: String,
 }
@@ -89,6 +99,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mdl = steamws::mdl::MDLFile::open(path)?;
             for dep in mdl.dependencies()? {
                 println!("{}", dep.path().to_str().unwrap());
+            }
+
+            Ok(())
+        }
+        SubCommand::Skins(t) => {
+            let path = Path::new(&t.input);
+
+            let mdl = steamws::mdl::MDLFile::open(path)?;
+            for (i, skin) in mdl.skins_with_material_paths().iter().enumerate() {
+                println!("Skin #{}", i);
+                for tex in skin {
+                    println!("{:?}", tex);
+                }
+                println!();
             }
 
             Ok(())
