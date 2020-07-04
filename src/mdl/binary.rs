@@ -6,6 +6,7 @@ use std::io::Cursor;
 use std::ffi::CStr;
 use byteorder::{LittleEndian, ReadBytesExt};
 use err_derive::Error;
+use std::collections::HashSet;
 
 #[derive(Debug)]
 pub struct PartialMDL {
@@ -99,16 +100,51 @@ pub fn read(bytes: &mut Vec<u8>) -> Result<PartialMDL, Box<dyn std::error::Error
         texture_dirs.push(texdir_name);
     }
 
+    println!("skinreference_count={} skinrfamily_Count={}", skinreference_count, skinrfamily_count);
     reader.seek(SeekFrom::Start(skinreference_index.into()))?;
-    // https://gitlab.h08.us/puff/project-spahget/-/blob/fb558f2c425c63623180f864192442b766218e44/mdl/valve.py#L243
-    let table_width = skinreference_count / skinrfamily_count;
+
+    let width = skinrfamily_count as usize;
+    let height = skinreference_count as usize;
+
+    // Base 1d array
+    // Vector of 'width' elements slices
+    // Final 2d array `&mut [&mut [_]]`
+    let mut skin_table_raw = vec![0; width * height];
+    let mut skin_table_base: Vec<_> = skin_table_raw.as_mut_slice().chunks_mut(width).collect();
+    let skin_table = skin_table_base.as_mut_slice();
+
+    for family in 0..width {
+        for reference in 0..height {
+            let texture_id = reader.read_u16::<LittleEndian>()?;
+            skin_table[reference][family] = texture_id;
+        }
+    }
+
+    // Extraneous column culling algorithm
+    // Credits https://github.com/cannon/quickpack/blob/d96d9f87556536893283fac8d2ef82240e41a9c9/QuickPack.py#L314
+    let last_column = {
+        let mut last_different_column = 0;
+        let mut last_unique_column = 0;
+        let mut unseen_indexes: HashSet<u16> = (0..(skinreference_count as u16)).collect();
+        for x in 0..height {
+            for y in 0..width {
+                if skin_table[x][0] != skin_table[x][y] {
+                    last_different_column = x;
+                }
+                if unseen_indexes.contains(&skin_table[x][y]) {
+                    last_unique_column = x;
+                    unseen_indexes.remove(&skin_table[x][y]);
+                }
+            }
+        }
+        last_different_column.max(last_unique_column)
+    };
 
     let mut skins = vec!();
-    for _skin in 0..skinreference_count {
+    for skin_index in 0..skinrfamily_count {
         let mut skin = vec!();
-        for _replaced_tex_id in 0..table_width {
-            let texture_id = reader.read_u16::<LittleEndian>()?;
-            skin.push(texture_id);
+        for replaced_tex_id in 0..=last_column {
+            skin.push(skin_table[replaced_tex_id as usize][skin_index as usize]);
         }
         skins.push(MDLSkin(skin));
     }
@@ -118,7 +154,7 @@ pub fn read(bytes: &mut Vec<u8>) -> Result<PartialMDL, Box<dyn std::error::Error
         texture_names: texture_names,
         texture_dirs: texture_dirs,
         skin_count: skinrfamily_count,
-        texture_slot_count: table_width,
+        texture_slot_count: last_column as u32 + 1,
         skins: skins
     })
 }
