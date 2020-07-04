@@ -66,12 +66,12 @@ struct RemoveCommand {
     /// Mdl file to remove
     input: String,
 
-    /// Also remove in-direct dependencies.
+    /// Also remove indirect dependencies.
     ///
-    /// In-direct assets are the ones that other models may rely on,
+    /// Indirect assets are the ones that other models may rely on,
     /// such as materials and textures.
     #[clap(long, short)]
-    deps: bool,
+    all_deps: bool,
 
     /// Prints what the command would remove if executed without
     /// this flag
@@ -150,7 +150,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut size = 0;
 
             for dep in &mdl.dependencies()? {
-                if !t.deps && !dep.is_direct() {
+                if !t.all_deps && !dep.is_direct() {
                     continue;
                 }
 
