@@ -1,4 +1,3 @@
-use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use petgraph::Graph;
 use petgraph::graph::NodeIndex;
@@ -11,7 +10,7 @@ pub struct DependencyGraph<Node, Edge> {
     graph: Graph<Node, Edge>
 }
 
-impl <Node: Debug, Edge: Debug> DependencyGraph<Node, Edge> {
+impl <Node: Debug + Clone, Edge: Debug + Clone> DependencyGraph<Node, Edge> {
     pub fn new(root: Node) -> DependencyGraph<Node, Edge> {
         let mut g = Graph::new();
         DependencyGraph {
@@ -26,6 +25,26 @@ impl <Node: Debug, Edge: Debug> DependencyGraph<Node, Edge> {
 
     pub fn flatten(self) -> Vec<Node> {
         self.graph.into_nodes_edges().0.into_iter().map(|n| n.weight).collect()
+    }
+
+    pub fn filter_root_dependencies<F>(&mut self, func: F)
+        where F: Fn(&Node) -> bool {
+
+        // Iterate children of root and remove 
+        let mut nodes = self.graph.neighbors(self.root_ref).detach();
+        while let Some(n) = nodes.next_node(&self.graph) {
+            if !func(&self.graph[n]) {
+                self.graph.remove_node(n);
+            }
+        }
+
+        // Remove nodes not connected to the root
+        // TODO cloning graph here is unideal, but it's a quick fix
+        let tmp_graph = self.graph.clone();
+        let root = self.root_ref;
+        self.graph.retain_nodes(|_, n| {
+            petgraph::algo::has_path_connecting(&tmp_graph, root, n, None)
+        });
     }
 
     pub fn insert(&mut self, n: Node, e: Edge) -> NodeRef {

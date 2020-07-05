@@ -7,7 +7,7 @@ use crate::dependency::DependencyGraph;
 
 mod binary;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MDLDependency {
     Direct(PathBuf),
     Material(PathBuf),

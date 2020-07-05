@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::vec::Vec;
+use std::collections::HashSet;
 
 use clap::Clap;
 
@@ -48,6 +49,10 @@ enum SubCommand {
 struct DependenciesCommand {
     /// Source mdl
     input: String,
+
+    /// Show dependencies only for given skin index
+    #[clap(long)]
+    skin: Option<u16>,
 
     /// Print dependencies in graphviz format
     /// 
@@ -104,7 +109,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let path = Path::new(&t.input);
 
             let mdl = steamws::mdl::MDLFile::open(path)?;
-            let deps = mdl.dependencies()?;
+            let mut deps = mdl.dependencies()?;
+
+            if let Some(skin) = t.skin {
+                let skin_mats = &mdl.skins_with_material_paths()[skin as usize];
+
+                let found_skin_mats: HashSet<&PathBuf> =
+                    skin_mats.iter()
+                    .filter_map(|s| s.as_ref())
+                    .collect();
+                deps.filter_root_dependencies(|d| {
+                    matches!(d, steamws::mdl::MDLDependency::Material(p) if found_skin_mats.contains(p))
+                })
+            }
+
             if t.dot {
                 println!("{}", deps.dot());
             } else {
