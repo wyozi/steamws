@@ -48,6 +48,13 @@ enum SubCommand {
 struct DependenciesCommand {
     /// Source mdl
     input: String,
+
+    /// Print dependencies in graphviz format
+    /// 
+    /// Example (OS X):
+    /// `mdl --deps --dot mymodel.mdl | dot -Tpng | open -a Preview.app -f`
+    #[clap(long)]
+    dot: bool,
 }
 
 #[derive(Clap)]
@@ -97,8 +104,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let path = Path::new(&t.input);
 
             let mdl = steamws::mdl::MDLFile::open(path)?;
-            for dep in mdl.dependencies()? {
-                println!("{}", dep.path().to_str().unwrap());
+            let deps = mdl.dependencies()?;
+            if t.dot {
+                println!("{}", deps.dot());
+            } else {
+                for dep in deps.flatten() {
+                    println!("{}", dep.path().to_str().unwrap());
+                }
             }
 
             Ok(())
@@ -125,7 +137,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let mdl = steamws::mdl::MDLFile::open(path)?;
             let assets_path = mdl.assets_path();
-            for dep in &mdl.dependencies()? {
+            for dep in &mdl.dependencies()?.flatten() {
                 let bare_dep = dep.path().strip_prefix(assets_path)?.to_path_buf();
                 copy_map.push((dep.path().to_path_buf(), out_path.join(bare_dep)));
             }
@@ -173,7 +185,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let mut size = 0;
 
-            for dep in &mdl.dependencies()? {
+            for dep in &mdl.dependencies()?.flatten() {
                 if !t.all_deps && !dep.is_direct() {
                     continue;
                 }

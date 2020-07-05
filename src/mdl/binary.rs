@@ -100,7 +100,6 @@ pub fn read(bytes: &mut Vec<u8>) -> Result<PartialMDL, Box<dyn std::error::Error
         texture_dirs.push(texdir_name);
     }
 
-    println!("skinreference_count={} skinrfamily_Count={}", skinreference_count, skinrfamily_count);
     reader.seek(SeekFrom::Start(skinreference_index.into()))?;
 
     let width = skinrfamily_count as usize;

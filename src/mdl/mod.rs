@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::collections::HashSet;
+use crate::dependency::DependencyGraph;
 
 mod binary;
 
@@ -69,13 +70,12 @@ impl MDLFile {
         None
     }
 
-    pub fn dependencies(&self) -> Result<Vec<MDLDependency>, Box<dyn std::error::Error>> {
+    pub fn dependencies(&self) -> Result<DependencyGraph<MDLDependency, ()>, Box<dyn std::error::Error>> {
         let assets_path = self.assets_path();
         let materials_path = assets_path.join("materials");
 
-        let mut deps = vec![];
+        let mut deps = DependencyGraph::new(MDLDependency::Direct(self.path.to_path_buf()));
 
-        deps.push(MDLDependency::Direct(self.path.to_path_buf()));
         let mdl_containing_folder = self.path.parent().unwrap();
         let mdl_stem = self.path.file_stem().unwrap().to_str().unwrap();
         for entry in fs::read_dir(mdl_containing_folder)? {
@@ -84,7 +84,7 @@ impl MDLFile {
                 && path.file_name().unwrap().to_str().unwrap().starts_with(mdl_stem)
                 && path != self.path
             {
-                deps.push(MDLDependency::Direct(path.to_path_buf()));
+                deps.insert(MDLDependency::Direct(path.to_path_buf()), ());
             }
         }
 
@@ -93,13 +93,13 @@ impl MDLFile {
             let discovered = self.discover_texture_path(&materials_path, mat_name);
 
             if let Some(mat_path) = discovered {
-                deps.push(MDLDependency::Material(mat_path.to_path_buf()));
+                let mat_dep = deps.insert(MDLDependency::Material(mat_path.to_path_buf()), ());
                 let vmt = crate::vmt::read(&mat_path)?;
                 for tex in vmt.textures {
                     let cleaned_up = tex.replace("\\", "/").to_lowercase();
                     let tex_path = materials_path.join(format!("{}.vtf", cleaned_up));
                     if tex_path.exists() && !discovered_textures.contains(&tex_path) {
-                        deps.push(MDLDependency::Texture(tex_path.to_path_buf()));
+                        deps.insert_sub(mat_dep, MDLDependency::Texture(tex_path.to_path_buf()), ());
                         discovered_textures.insert(tex_path);
                     }
                 }
