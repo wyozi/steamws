@@ -203,11 +203,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let mut size = 0;
 
-            for dep in &mdl.dependencies()?.flatten() {
-                if !t.all_deps && !dep.is_direct() {
-                    continue;
-                }
+            let mut deps = mdl.dependencies()?;
 
+            if !t.all_deps {
+                deps.filter_root_edges(|e| {
+                    matches!(e, steamws::mdl::MDLDependencyType::Direct)
+                });
+            }
+
+            for dep in &deps.flatten() {
                 println!("{}", dep.path().display());
 
                 if !t.dry_run {

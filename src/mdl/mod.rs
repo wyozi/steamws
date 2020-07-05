@@ -9,25 +9,25 @@ mod binary;
 
 #[derive(Debug, Clone)]
 pub enum MDLDependency {
-    Direct(PathBuf),
+    /// The .mdl itself and auxiliary files
+    Model(PathBuf),
     Material(PathBuf),
     Texture(PathBuf),
 }
 impl MDLDependency {
-    pub fn is_direct(&self) -> bool {
-        match self {
-            MDLDependency::Direct(_) => true,
-            _ => false
-        }
-    }
-
     pub fn path(&self) -> &Path {
         match self {
-            MDLDependency::Direct(p) => p,
+            MDLDependency::Model(p) => p,
             MDLDependency::Material(p) => p,
             MDLDependency::Texture(p) => p,
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub enum MDLDependencyType {
+    Direct,
+    Indirect
 }
 
 pub struct MDLFile {
@@ -70,11 +70,11 @@ impl MDLFile {
         None
     }
 
-    pub fn dependencies(&self) -> Result<DependencyGraph<MDLDependency, ()>, Box<dyn std::error::Error>> {
+    pub fn dependencies(&self) -> Result<DependencyGraph<MDLDependency, MDLDependencyType>, Box<dyn std::error::Error>> {
         let assets_path = self.assets_path();
         let materials_path = assets_path.join("materials");
 
-        let mut deps = DependencyGraph::new(MDLDependency::Direct(self.path.to_path_buf()));
+        let mut deps = DependencyGraph::new(MDLDependency::Model(self.path.to_path_buf()));
 
         let mdl_containing_folder = self.path.parent().unwrap();
         let mdl_stem = self.path.file_stem().unwrap().to_str().unwrap();
@@ -84,7 +84,7 @@ impl MDLFile {
                 && path.file_name().unwrap().to_str().unwrap().starts_with(mdl_stem)
                 && path != self.path
             {
-                deps.insert(MDLDependency::Direct(path.to_path_buf()), ());
+                deps.insert(MDLDependency::Model(path.to_path_buf()), MDLDependencyType::Direct);
             }
         }
 
@@ -93,13 +93,13 @@ impl MDLFile {
             let discovered = self.discover_texture_path(&materials_path, mat_name);
 
             if let Some(mat_path) = discovered {
-                let mat_dep = deps.insert(MDLDependency::Material(mat_path.to_path_buf()), ());
+                let mat_dep = deps.insert(MDLDependency::Material(mat_path.to_path_buf()), MDLDependencyType::Indirect);
                 let vmt = crate::vmt::read(&mat_path)?;
                 for tex in vmt.textures {
                     let cleaned_up = tex.replace("\\", "/").to_lowercase();
                     let tex_path = materials_path.join(format!("{}.vtf", cleaned_up));
                     if tex_path.exists() && !discovered_textures.contains(&tex_path) {
-                        deps.insert_sub(mat_dep, MDLDependency::Texture(tex_path.to_path_buf()), ());
+                        deps.insert_sub(mat_dep, MDLDependency::Texture(tex_path.to_path_buf()), MDLDependencyType::Indirect);
                         discovered_textures.insert(tex_path);
                     }
                 }

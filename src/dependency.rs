@@ -27,10 +27,20 @@ impl <Node: Debug + Clone, Edge: Debug + Clone> DependencyGraph<Node, Edge> {
         self.graph.into_nodes_edges().0.into_iter().map(|n| n.weight).collect()
     }
 
+    /// Remove nodes not connected to the root
+    fn remove_unconnected_dependencies(&mut self) {
+        // TODO cloning graph here is unideal, but it's a quick fix
+        let tmp_graph = self.graph.clone();
+        let root = self.root_ref;
+        self.graph.retain_nodes(|_, n| {
+            petgraph::algo::has_path_connecting(&tmp_graph, root, n, None)
+        });
+    }
+
     pub fn filter_root_dependencies<F>(&mut self, func: F)
         where F: Fn(&Node) -> bool {
 
-        // Iterate children of root and remove 
+        // Iterate children of root and remove
         let mut nodes = self.graph.neighbors(self.root_ref).detach();
         while let Some(n) = nodes.next_node(&self.graph) {
             if !func(&self.graph[n]) {
@@ -38,13 +48,21 @@ impl <Node: Debug + Clone, Edge: Debug + Clone> DependencyGraph<Node, Edge> {
             }
         }
 
-        // Remove nodes not connected to the root
-        // TODO cloning graph here is unideal, but it's a quick fix
-        let tmp_graph = self.graph.clone();
-        let root = self.root_ref;
-        self.graph.retain_nodes(|_, n| {
-            petgraph::algo::has_path_connecting(&tmp_graph, root, n, None)
-        });
+        self.remove_unconnected_dependencies();
+    }
+
+    pub fn filter_root_edges<F>(&mut self, func: F)
+        where F: Fn(&Edge) -> bool {
+
+        // Iterate children of root and remove
+        let mut edges = self.graph.neighbors(self.root_ref).detach();
+        while let Some(e) = edges.next_edge(&self.graph) {
+            if !func(&self.graph[e]) {
+                self.graph.remove_edge(e);
+            }
+        }
+
+        self.remove_unconnected_dependencies();
     }
 
     pub fn insert(&mut self, n: Node, e: Edge) -> NodeRef {
