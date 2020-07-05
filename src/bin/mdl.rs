@@ -73,6 +73,10 @@ struct CopyCommand {
     /// Source mdl
     input: String,
 
+    /// Only copy texture dependencies required by given skin index
+    #[clap(long)]
+    skin: Option<u16>,
+
     /// Where mdl and dependencies will be placed.
     /// Should be the folder containing "models" and "materials"
     output_folder: String,
@@ -154,8 +158,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut copy_map: Vec<(PathBuf, PathBuf)> = vec![];
 
             let mdl = steamws::mdl::MDLFile::open(path)?;
+            let mut deps = mdl.dependencies()?;
+
+            if let Some(skin) = t.skin {
+                let skin_mats = &mdl.skins_with_material_paths()[skin as usize];
+
+                let found_skin_mats: HashSet<&PathBuf> =
+                    skin_mats.iter()
+                    .filter_map(|s| s.as_ref())
+                    .collect();
+                deps.filter_root_dependencies(|d| {
+                    matches!(d, steamws::mdl::MDLDependency::Material(p) if found_skin_mats.contains(p))
+                })
+            }
+
             let assets_path = mdl.assets_path();
-            for dep in &mdl.dependencies()?.flatten() {
+            for dep in &deps.flatten() {
                 let bare_dep = dep.path().strip_prefix(assets_path)?.to_path_buf();
                 copy_map.push((dep.path().to_path_buf(), out_path.join(bare_dep)));
             }
