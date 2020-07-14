@@ -77,6 +77,10 @@ struct CopyCommand {
     #[clap(long)]
     skin: Option<u16>,
 
+    /// Only copy direct dependencies (excludes e.g. materials)
+    #[clap(long)]
+    direct_deps: bool,
+
     /// Where mdl and dependencies will be placed.
     /// Should be the folder containing "models" and "materials"
     output_folder: String,
@@ -159,6 +163,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let mdl = steamws::mdl::MDLFile::open(path)?;
             let mut deps = mdl.dependencies()?;
+
+            if t.direct_deps {
+                deps.filter_root_edges(|e| {
+                    matches!(e, steamws::mdl::MDLDependencyType::Direct)
+                });
+            }
 
             if let Some(skin) = t.skin {
                 let skin_mats = &mdl.skins_with_material_paths()[skin as usize];
