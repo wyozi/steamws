@@ -1,6 +1,6 @@
 use steamws::gma;
 
-use clap::Clap;
+use clap::{Parser, Subcommand, Args};
 use globset::Glob;
 use std::fs;
 use std::fs::File;
@@ -8,49 +8,45 @@ use std::io;
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
 
-#[derive(Clap)]
-#[clap(author, about, version)]
+#[derive(Parser)]
+#[command(author, about, version)]
 struct Opts {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     subcmd: SubCommand,
 }
 
-#[derive(Clap)]
+#[derive(Subcommand)]
 enum SubCommand {
     /// Prints metadata about given gma
-    #[clap()]
     Info(InfoCommand),
     /// Lists files in given gma
-    #[clap(alias = "ls")]
+    #[command(alias = "ls")]
     List(ListCommand),
     /// Prints files in given gma
-    #[clap()]
     Cat(CatCommand),
     /// Unpacks gma to a folder
-    #[clap()]
     Unpack(UnpackCommand),
     /// Packs folder into a gma file
-    #[clap()]
     Pack(PackCommand),
 }
 
-#[derive(Clap)]
+#[derive(Args)]
 struct InfoCommand {
     /// Source gma. Either a file path or - for stdin
     input: String,
 }
 
-#[derive(Clap)]
+#[derive(Args)]
 struct ListCommand {
     /// Source gma. Either a file path or - for stdin
     input: String,
 
     /// Sorts the output and includes extra metadata
-    #[clap(short)]
+    #[arg(short)]
     long_format: bool
 }
 
-#[derive(Clap)]
+#[derive(Args)]
 struct CatCommand {
     /// Source gma. Either a file path or - for stdin
     input: String,
@@ -58,7 +54,7 @@ struct CatCommand {
     pattern: Option<String>,
 }
 
-#[derive(Clap)]
+#[derive(Args)]
 struct UnpackCommand {
     /// Source gma. Either a file path or - for stdin
     input: String,
@@ -68,13 +64,13 @@ struct UnpackCommand {
     pattern: Option<String>,
 }
 
-#[derive(Clap)]
+#[derive(Args)]
 struct PackCommand {
     /// Source folder
     folder: String,
 
     /// Addon title (included in the gma itself)
-    #[clap(short, long)]
+    #[arg(short, long)]
     title: Option<String>,
 
     /// Addon description (included in the gma itself)
@@ -82,7 +78,7 @@ struct PackCommand {
     /// Note that by convention GMAD places a JSON with metadata
     /// in the description string. You should probably not use this
     /// flag unless you know what you're doing
-    #[clap(short, long)]
+    #[arg(short, long)]
     description: Option<String>,
 }
 

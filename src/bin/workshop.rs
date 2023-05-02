@@ -9,7 +9,7 @@ use std::fs::File;
 use std::fs::metadata;
 use std::io;
 use std::io::Read;
-use clap::Clap;
+use clap::{Parser, Subcommand, Args};
 use lzma::LzmaReader;
 use std::error::Error;
 use std::fmt;
@@ -17,57 +17,53 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 
-#[derive(Clap)]
-#[clap(author, about, version)]
+#[derive(Parser)]
+#[command(author, about, version)]
 struct Opts {
     /// Creates "steam_appid.txt" in working directory with given app id
-    #[clap(short, long)]
+    #[arg(short, long)]
     app_id: Option<String>,
 
     /// How loud we will be
-    #[clap(short, long, parse(from_occurrences))]
-    verbose: i32,
+    //#[arg(short, long, parse(from_occurrences))]
+    //verbose: i32,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     subcmd: SubCommand,
 }
 
-#[derive(Clap)]
+#[derive(Subcommand)]
 enum SubCommand {
     /// Prints info about a workshop item
-    #[clap()]
     Info(InfoCommand),
 
     /// Downloads workshop item file and prints its contents to stdout
-    #[clap()]
     Get(GetCommand),
 
     /// Creates a new workshop item
     /// 
     /// You must populate the item separately with `workshop update`
-    #[clap()]
     Create(CreateCommand),
 
     /// Updates a new workshop item
-    #[clap()]
     Update(UpdateCommand),
 }
 
-#[derive(Clap)]
+#[derive(Args)]
 struct InfoCommand {
     workshop_id: String
 }
 
-#[derive(Clap)]
+#[derive(Args)]
 struct GetCommand {
     workshop_id: String
 }
 
-#[derive(Clap)]
+#[derive(Args)]
 struct CreateCommand {
 }
 
-#[derive(Clap)]
+#[derive(Args)]
 struct UpdateCommand {
     workshop_id: String,
 
@@ -173,7 +169,7 @@ fn submit_update<M: steamworks::Manager>(scl: &steamworks::SingleClient<M>, hand
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts: Opts = Opts::parse();
-    let is_verbose = opts.verbose > 0; // TODO maybe we'll do multiple levels later
+    let is_verbose = false; // TODO opts.verbose > 0; // TODO maybe we'll do multiple levels later
 
     // Handle that implements Drop for automatic cleanup
     let _app_id_handle = match opts.app_id {

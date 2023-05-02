@@ -3,23 +3,23 @@ use std::path::Path;
 use std::vec::Vec;
 use std::io::Read;
 
-use clap::Clap;
+use clap::{Parser, Subcommand, Args};
 
-#[derive(Clap)]
-#[clap(author, about, version)]
+#[derive(Parser)]
+#[command(author, about, version)]
 struct Opts {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     subcmd: SubCommand,
 }
 
-#[derive(Clap)]
+#[derive(Subcommand)]
 enum SubCommand {
     /// Prints metadata about given vtf
-    #[clap()]
+    #[command()]
     Info(InfoCommand)
 }
 
-#[derive(Clap)]
+#[derive(Args)]
 struct InfoCommand {
     /// Source vtf
     input: String,

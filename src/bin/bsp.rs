@@ -4,23 +4,23 @@ use std::io::{Read, BufReader};
 use std::io;
 use byteorder::{LittleEndian, ReadBytesExt};
 
-use clap::Clap;
+use clap::{Parser, Subcommand, Args};
 
-#[derive(Clap)]
-#[clap(author, about, version)]
+#[derive(Parser)]
+#[command(author, about, version)]
 struct Opts {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     subcmd: SubCommand,
 }
 
-#[derive(Clap)]
+#[derive(Subcommand)]
 enum SubCommand {
     /// Lists files contained in the Pakfile lump
-    #[clap(alias = "ls-pak")]
+    #[command(alias = "ls-pak")]
     ListPackedFiles(ListPackedFilesCommand)
 }
 
-#[derive(Clap)]
+#[derive(Args)]
 struct ListPackedFilesCommand {
     /// Source mdl
     input: String,
@@ -58,10 +58,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut archive = zip::ZipArchive::new(reader)?;
             for i in 0..archive.len() {
                 let file = archive.by_index(i)?;
-                let outpath = file.sanitized_name();
+                let outpath = file.enclosed_name().unwrap();
 
                 if !(&*file.name()).ends_with('/') {
-                    println!("{}", outpath.as_path().display());
+                    println!("{}", outpath.display());
                 }
             }
 

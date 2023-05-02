@@ -3,16 +3,16 @@ use std::path::{Path, PathBuf};
 use std::vec::Vec;
 use std::collections::HashSet;
 
-use clap::Clap;
+use clap::{Parser, Subcommand, Args};
 
-#[derive(Clap)]
-#[clap(author, about, version)]
+#[derive(Parser)]
+#[command(author, about, version)]
 struct Opts {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     subcmd: SubCommand,
 }
 
-#[derive(Clap)]
+#[derive(Subcommand)]
 enum SubCommand {
     /// Lists all dependencies of this .mdl
     ///
@@ -21,11 +21,11 @@ enum SubCommand {
     /// .mdl file itself.
     ///
     /// The paths are returned relative to the working directory
-    #[clap(alias = "deps")]
+    #[command(alias = "deps")]
     Dependencies(DependenciesCommand),
 
     /// List skins in this .mdl
-    #[clap()]
+    #[command()]
     Skins(SkinsCommand),
 
     /// Copies given .mdl with dependencies to target path
@@ -33,7 +33,7 @@ enum SubCommand {
     /// Maintains the folder structure, including materials.
     /// For that reason, the target directory should be one
     /// with "models" and "materials" folders
-    #[clap(alias = "cp")]
+    #[command(alias = "cp")]
     Copy(CopyCommand),
 
     /// Removes given .mdl (and optionally its dependencies)
@@ -41,44 +41,44 @@ enum SubCommand {
     /// By default this command removes just direct dependencies
     /// (the files references the .mdl in the same models folder).
     /// This behavior can be changed with the deps flag
-    #[clap(alias = "rm")]
+    #[command(alias = "rm")]
     Remove(RemoveCommand),
 }
 
-#[derive(Clap)]
+#[derive(Args)]
 struct DependenciesCommand {
     /// Source mdl
     input: String,
 
     /// Show dependencies only for given skin index
-    #[clap(long)]
+    #[arg(long)]
     skin: Option<u16>,
 
     /// Print dependencies in graphviz format
     /// 
     /// Example (OS X):
     /// `mdl --deps --dot mymodel.mdl | dot -Tpng | open -a Preview.app -f`
-    #[clap(long)]
+    #[arg(long)]
     dot: bool,
 }
 
-#[derive(Clap)]
+#[derive(Args)]
 struct SkinsCommand {
     /// Source mdl
     input: String,
 }
 
-#[derive(Clap)]
+#[derive(Args)]
 struct CopyCommand {
     /// Source mdl
     input: String,
 
     /// Only copy texture dependencies required by given skin index
-    #[clap(long)]
+    #[arg(long)]
     skin: Option<u16>,
 
     /// Only copy direct dependencies (excludes e.g. materials)
-    #[clap(long)]
+    #[arg(long)]
     direct_deps: bool,
 
     /// Where mdl and dependencies will be placed.
@@ -87,11 +87,11 @@ struct CopyCommand {
 
     /// Prints what the command would copy if executed without
     /// this flag
-    #[clap(long, short = "n")]
+    #[arg(long, short = 'n')]
     dry_run: bool,
 }
 
-#[derive(Clap)]
+#[derive(Args)]
 struct RemoveCommand {
     /// Mdl file to remove
     input: String,
@@ -100,12 +100,12 @@ struct RemoveCommand {
     ///
     /// Indirect assets are the ones that other models may rely on,
     /// such as materials and textures.
-    #[clap(long, short)]
+    #[arg(long, short)]
     all_deps: bool,
 
     /// Prints what the command would remove if executed without
     /// this flag
-    #[clap(long, short = "n")]
+    #[arg(long, short = 'n')]
     dry_run: bool,
 }
 
