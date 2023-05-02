@@ -24,6 +24,9 @@ enum SubCommand {
 struct ListPackedFilesCommand {
     /// Source mdl
     input: String,
+
+    #[arg(short, long)]
+    include_size: bool,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -61,7 +64,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let outpath = file.enclosed_name().unwrap();
 
                 if !(&*file.name()).ends_with('/') {
-                    println!("{}", outpath.display());
+                    if t.include_size {
+                        println!("{}\t{}", outpath.display(), file.size());
+                    } else {
+                        println!("{}", outpath.display());
+                    }
                 }
             }
 
