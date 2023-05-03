@@ -20,27 +20,30 @@ impl BufferedBSP {
             [(lump.off - BSP_HEADER_LEN) as usize..(lump.off + lump.len - BSP_HEADER_LEN) as usize]
     }
 
-    pub fn replace_lump(&mut self, lump_index: LumpIndex, new_lump: &[u8]) {
+    pub fn replace_lump(&mut self, lump_index: LumpIndex, new_lump: Vec<u8>) {
         let mut lump = &mut self.header.lumps[lump_index as usize];
-        assert!(
-            new_lump.len() < lump.len as usize,
-            "new lump must be smaller than old lump due to how we replace it"
-        );
+        let new_lump_len = new_lump.len() as u32;
+        let lump_len_diff = (new_lump_len as i32) - (lump.len as i32);
 
-        // zero old slice
-        let old_slice = &mut self.data_without_header
-            [(lump.off - BSP_HEADER_LEN) as usize..(lump.off + lump.len - BSP_HEADER_LEN) as usize];
-        for i in old_slice {
-            *i = 0;
+        // replace range in data
+        self.data_without_header
+            .splice(
+                (lump.off - BSP_HEADER_LEN) as usize
+                    ..(lump.off + lump.len - BSP_HEADER_LEN) as usize,
+                new_lump,
+            )
+            .count();
+
+        // set new lump length in header
+        lump.len = new_lump_len;
+
+        // fix offset of all lumps with offsets higher than this lump's offset
+        let lump_off = lump.off;
+        for mut some_lump in &mut self.header.lumps {
+            if some_lump.off > lump_off {
+                some_lump.off = (some_lump.off as i32 + lump_len_diff) as u32;
+            }
         }
-
-        // set new slice
-        self.data_without_header[(lump.off - BSP_HEADER_LEN) as usize
-            ..(lump.off - BSP_HEADER_LEN) as usize + new_lump.len()]
-            .copy_from_slice(new_lump);
-
-        // set length in header
-        lump.len = new_lump.len() as u32;
     }
 
     pub fn write<W: Write>(&self, writer: &mut W) -> Result<(), Box<dyn std::error::Error>> {

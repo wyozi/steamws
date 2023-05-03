@@ -154,7 +154,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             io::copy(&mut slice, &mut lump_writer)?;
 
             // replace bsp entity lump with a stripped one
-            bsp.replace_lump(LumpIndex::LUMP_ENTITIES, &new_slice);
+            bsp.replace_lump(LumpIndex::LUMP_ENTITIES, new_slice);
 
             let lump_file = File::create(t.output)?;
             let mut lump_writer = BufWriter::new(lump_file);
