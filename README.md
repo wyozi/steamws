@@ -37,6 +37,9 @@ workshop get 2137434632 | gma unpack - out && echo `date` > out/date.txt && gma 
 
 # Fetch+Unpack workshop item, copy given .mdl and its dependencies (materials+textures) to another folder
 workshop get 1512211167 | gma unpack - tiger && mdl cp tiger/models/kaesar/hobbs/hobbs.mdl my-content
+
+# Extract entity lump from a file
+bsp extract-entity-lump bowling.bsp bowling_final.bsp
 ```
 
 ## Quickstart
@@ -73,3 +76,7 @@ will not be able to figure out the app_id and the binary will crash.
 You can fix that by creating `steam_appid.txt` in the working directory or `SteamAppId` environment variable with the app id.
 The `workshop` binary provides `-a <id>` option to temporarily create the file with given id,
 and it'll also try its best to clean up the file before the command finishes.
+
+## Credits
+
+- Entity lump extraction is inspired by https://github.com/meepen/entremover_bsp
