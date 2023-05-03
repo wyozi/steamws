@@ -17,7 +17,7 @@ pub struct Lump {
     pub off: u32,
     pub len: u32,
     pub version: u32,
-    pub ident: u32,
+    pub ident: [u8; 4],
 }
 
 pub struct BSPHeader {
@@ -52,13 +52,15 @@ impl<R: Read> BSPReader<R> {
             let off = reader.read_u32::<LittleEndian>()?;
             let len = reader.read_u32::<LittleEndian>()?;
             let vers = reader.read_u32::<LittleEndian>()?;
-            let ident = reader.read_u32::<LittleEndian>()?;
+
+            let mut ident_buf = [0; 4];
+            reader.read_exact(&mut ident_buf)?;
 
             lumps[i] = Lump {
                 off: off,
                 len: len,
                 version: vers,
-                ident: ident,
+                ident: ident_buf,
             };
         }
         let map_revision = reader.read_u32::<LittleEndian>()?;

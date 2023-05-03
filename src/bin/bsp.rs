@@ -67,6 +67,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("map version = {}", bsp_reader.header().version);
             println!("map revision = {}", bsp_reader.header().map_revision);
 
+            println!("===");
+
+            for (i, lump) in bsp_reader.header().lumps.iter().enumerate() {
+                println!(
+                    "lump #{i}: off={} len={} ident={:?}",
+                    lump.off, lump.len, lump.ident
+                );
+            }
+
             Ok(())
         }
         SubCommand::ListPackedFiles(t) => {
@@ -106,8 +115,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .to_owned()
             });
 
-            // generate lump file
+            // create a new slice where worldspawn (i.e. entity number one) is kept in the entity lump
+            let mut slice = bsp.lump_slice(LumpIndex::LUMP_ENTITIES);
+            let brace_pos = slice.iter().position(|b| *b == b'}');
+            let new_slice = match brace_pos {
+                Some(p) => slice[0..p + 1].to_owned(),
+                None => Vec::new(),
+            };
 
+            // generate extracted lump file
             let lump_header = &bsp.header.lumps[LumpIndex::LUMP_ENTITIES as usize];
             let lump_file = File::create(lump_output)?;
             let mut lump_writer = BufWriter::new(lump_file);
@@ -118,13 +134,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             lump_writer.write_u32::<LittleEndian>(lump_header.len)?; // lumpLength
             lump_writer.write_u32::<LittleEndian>(bsp.header.map_revision)?; // mapRevision
 
-            io::copy(
-                &mut bsp.lump_slice(LumpIndex::LUMP_ENTITIES),
-                &mut lump_writer,
-            )?;
+            io::copy(&mut slice, &mut lump_writer)?;
 
-            // remove entity lump from input bsp
-            bsp.replace_lump(LumpIndex::LUMP_ENTITIES, &[]);
+            // replace bsp entity lump with a stripped one
+            bsp.replace_lump(LumpIndex::LUMP_ENTITIES, &new_slice);
 
             let lump_file = File::create(t.output)?;
             let mut lump_writer = BufWriter::new(lump_file);
