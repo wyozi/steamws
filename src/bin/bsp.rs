@@ -1,10 +1,13 @@
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use std::collections::hash_map::DefaultHasher;
 use std::fs::File;
+use std::hash::Hasher;
 use std::io::{self, BufWriter};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use steamws::bsp::BSPHeader;
 use steamws::bsp::{lump_indices::LumpIndex, BSPReader};
+use strum::IntoEnumIterator;
 
 use clap::{Args, Parser, Subcommand};
 
@@ -31,6 +34,12 @@ enum SubCommand {
 struct InfoCommand {
     /// Source bsp
     input: PathBuf,
+
+    /// Print information about lumps
+    /// Includes length, offset, ident
+    /// Also calculates and print lump hashes (using arbitrary hashing algorithm, just for comparison purposes)
+    #[arg{short, long}]
+    lumps: bool,
 }
 
 #[derive(Args)]
@@ -67,13 +76,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("map version = {}", bsp_reader.header().version);
             println!("map revision = {}", bsp_reader.header().map_revision);
 
-            println!("===");
+            if t.lumps {
+                let bsp = bsp_reader.into_buffered_bsp();
+                println!("===");
 
-            for (i, lump) in bsp_reader.header().lumps.iter().enumerate() {
-                println!(
-                    "lump #{i}: off={} len={} ident={:?}",
-                    lump.off, lump.len, lump.ident
-                );
+                for lump_index in LumpIndex::iter() {
+                    let mut hasher = DefaultHasher::new();
+                    hasher.write(bsp.lump_slice(lump_index));
+                    let hash = hasher.finish();
+
+                    let lump = &bsp.header.lumps[lump_index as usize];
+                    println!(
+                        "lump #{}: off={} len={} ident={:?} hash={:x}",
+                        lump_index as usize, lump.off, lump.len, lump.ident, hash
+                    );
+                }
             }
 
             Ok(())

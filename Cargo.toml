@@ -12,7 +12,7 @@ edition = "2018"
 [features]
 default = ["workshop", "vtf", "bsp"]
 workshop = ["steamworks", "rust-lzma"]
-bsp = ["zip"]
+bsp = ["strum", "zip"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
@@ -31,6 +31,7 @@ lazy_static = "1"
 petgraph = "0.6"
 vtf = { version = "0.1", optional = true }
 zip = { version = "0.6", default-features = false, optional = true }
+strum = { version = "0.24", optional = true, features = ["derive"] }
 
 [[bin]]
 name = "gma"

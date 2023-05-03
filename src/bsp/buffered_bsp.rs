@@ -12,6 +12,9 @@ pub struct BufferedBSP {
 impl BufferedBSP {
     pub fn lump_slice(&self, lump_index: LumpIndex) -> &[u8] {
         let lump = &self.header.lumps[lump_index as usize];
+        if lump.off < BSP_HEADER_LEN {
+            return &[];
+        }
 
         &self.data_without_header
             [(lump.off - BSP_HEADER_LEN) as usize..(lump.off + lump.len - BSP_HEADER_LEN) as usize]

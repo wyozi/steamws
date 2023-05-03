@@ -1,3 +1,6 @@
+use strum::{EnumIter, FromRepr};
+
+#[derive(Clone, Copy, FromRepr, Debug, PartialEq, EnumIter)]
 pub enum LumpIndex {
     LUMP_ENTITIES = 0,
     LUMP_PLANES = 1,
