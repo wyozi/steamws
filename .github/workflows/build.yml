@@ -30,9 +30,11 @@ jobs:
           args: --release --no-default-features --features "vtf bsp"
       - name: List binaries
         run: ls target/release
-      - name: "Get upload_url"
-        run: echo "::set-output name=upload_url::https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$(jq --raw-output '.release.id' $GITHUB_EVENT_PATH)/assets{?name,label}"
-        id: release
+      - name: Get release
+        id: get_release
+        uses: bruceadams/get-release@v1.3.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - name: "Upload bsp"
         uses: "actions/upload-release-asset@v1"
         env:
@@ -41,7 +43,7 @@ jobs:
           asset_content_type: "application/octet-stream"
           asset_name: bsp_${{ matrix.platform.os }}${{ matrix.platform.bin_suffix }}
           asset_path: "target/release/bsp${{ matrix.platform.bin_suffix }}"
-          upload_url: ${{ steps.release.outputs.upload_url }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
       - name: "Upload gma"
         uses: "actions/upload-release-asset@v1"
         env:
@@ -50,7 +52,7 @@ jobs:
           asset_content_type: "application/octet-stream"
           asset_name: gma_${{ matrix.platform.os }}${{ matrix.platform.bin_suffix }}
           asset_path: "target/release/gma${{ matrix.platform.bin_suffix }}"
-          upload_url: ${{ steps.release.outputs.upload_url }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
       - name: "Upload mdl"
         uses: "actions/upload-release-asset@v1"
         env:
@@ -59,7 +61,7 @@ jobs:
           asset_content_type: "application/octet-stream"
           asset_name: mdl_${{ matrix.platform.os }}${{ matrix.platform.bin_suffix }}
           asset_path: "target/release/mdl${{ matrix.platform.bin_suffix }}"
-          upload_url: ${{ steps.release.outputs.upload_url }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
       - name: "Upload vtf"
         uses: "actions/upload-release-asset@v1"
         env:
@@ -68,4 +70,4 @@ jobs:
           asset_content_type: "application/octet-stream"
           asset_name: vtf_${{ matrix.platform.os }}${{ matrix.platform.bin_suffix }}
           asset_path: "target/release/vtf${{ matrix.platform.bin_suffix }}"
-          upload_url: ${{ steps.release.outputs.upload_url }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
