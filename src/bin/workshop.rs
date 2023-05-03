@@ -25,8 +25,8 @@ struct Opts {
     app_id: Option<String>,
 
     /// How loud we will be
-    //#[arg(short, long, parse(from_occurrences))]
-    //verbose: i32,
+    #[arg(short, long, action = clap::ArgAction::Count)]
+    verbose: u8,
 
     #[command(subcommand)]
     subcmd: SubCommand,
@@ -169,7 +169,7 @@ fn submit_update<M: steamworks::Manager>(scl: &steamworks::SingleClient<M>, hand
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts: Opts = Opts::parse();
-    let is_verbose = false; // TODO opts.verbose > 0; // TODO maybe we'll do multiple levels later
+    let is_verbose = opts.verbose > 0; // TODO maybe we'll do multiple levels later
 
     // Handle that implements Drop for automatic cleanup
     let _app_id_handle = match opts.app_id {

@@ -1,10 +1,11 @@
-use std::fs::File;
-use std::path::Path;
-use std::io::{Read, BufReader};
-use std::io;
 use byteorder::{LittleEndian, ReadBytesExt};
+use std::fs::File;
+use std::io::{self, BufWriter};
+use std::io::{BufReader, Read};
+use std::path::{Path, PathBuf};
+use steamws::bsp::{lump_indices::LumpIndex, BSPReader};
 
-use clap::{Parser, Subcommand, Args};
+use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(author, about, version)]
@@ -17,16 +18,31 @@ struct Opts {
 enum SubCommand {
     /// Lists files contained in the Pakfile lump
     #[command(alias = "ls-pak")]
-    ListPackedFiles(ListPackedFilesCommand)
+    ListPackedFiles(ListPackedFilesCommand),
+
+    /// Separates input bsp into bsp with entity lump removed and lump file with just the entity lump, WIP!
+    ExtractEntityLump(ExtractEntityLumpCommand),
 }
 
 #[derive(Args)]
 struct ListPackedFilesCommand {
-    /// Source mdl
-    input: String,
+    /// Source bsp
+    input: PathBuf,
 
     #[arg(short, long)]
     include_size: bool,
+}
+
+#[derive(Args)]
+struct ExtractEntityLumpCommand {
+    /// Source bsp
+    input: PathBuf,
+
+    /// Output bsp (with entity lump removed)
+    output: PathBuf,
+
+    /// Lump file. By default <output without extension>_l_0.lmp
+    lump_output: Option<String>,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -36,29 +52,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         SubCommand::ListPackedFiles(t) => {
             let path = Path::new(&t.input);
             let file = File::open(path)?;
-            let mut reader = BufReader::new(file);
+            let reader = BufReader::new(file);
+            let bsp_reader = BSPReader::from_reader(reader)?;
 
-            let _ident = reader.read_u32::<LittleEndian>()?;
-            let _version = reader.read_u32::<LittleEndian>()?;
-
-            let mut pakfile_off = 0;
-
-            for i in 0..64 {
-                let off = reader.read_u32::<LittleEndian>()?;
-                let _len = reader.read_u32::<LittleEndian>()?;
-                let _vers = reader.read_u32::<LittleEndian>()?;
-                let _lump_ident = reader.read_u32::<LittleEndian>()?;
-
-                if i == 40 {
-                    pakfile_off = off;
-                }
-            }
-            let _map_revision = reader.read_u32::<LittleEndian>()?;
-
-            let header_len = 1036;
-            io::copy(&mut reader.by_ref().take((pakfile_off - header_len).into()), &mut io::sink())?;
-
-            let mut archive = zip::ZipArchive::new(reader)?;
+            let mut archive =
+                zip::ZipArchive::new(bsp_reader.reader_for_lump(LumpIndex::LUMP_PAKFILE)?)?;
             for i in 0..archive.len() {
                 let file = archive.by_index(i)?;
                 let outpath = file.enclosed_name().unwrap();
@@ -71,6 +69,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             }
+
+            Ok(())
+        }
+        SubCommand::ExtractEntityLump(t) => {
+            let path = Path::new(&t.input);
+            let file = File::open(path)?;
+            let reader = BufReader::new(file);
+            let bsp_reader = BSPReader::from_reader(reader)?;
+            let lump_size = bsp_reader.lump_size(LumpIndex::LUMP_ENTITIES);
+            let mut lump_reader = bsp_reader.reader_for_lump(LumpIndex::LUMP_ENTITIES)?;
+
+            let lump_output = t.lump_output.clone().unwrap_or_else(|| {
+                t.output
+                    .to_str()
+                    .unwrap()
+                    .replace(".bsp", "_l_0.lmp")
+                    .to_owned()
+            });
+
+            let lump_file = File::create(lump_output)?;
+            let mut lump_writer = BufWriter::new(lump_file);
+            io::copy(
+                &mut lump_reader.by_ref().take((lump_size).into()),
+                &mut lump_writer,
+            )?;
 
             Ok(())
         }
