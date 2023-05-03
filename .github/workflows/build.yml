@@ -9,10 +9,16 @@ name: Build binaries
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        platform:
+          - os: ubuntu-latest
+            bin_suffix: ""
+          - os: macos-latest
+            bin_suffix: ""
+          - os: windows-latest
+            bin_suffix: ".exe"
+    runs-on: ${{ matrix.platform.os }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -32,8 +38,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           asset_content_type: "application/octet-stream"
-          asset_name: bsp_${{ matrix.os }}
-          asset_path: "target/release/bsp"
+          asset_name: bsp_${{ matrix.platform.os }}
+          asset_path: "target/release/bsp${{ matrix.platform.bin_suffix }}"
           upload_url: ${{ steps.release.outputs.upload_url }}
       - name: "Upload gma"
         uses: "actions/upload-release-asset@v1"
@@ -41,8 +47,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           asset_content_type: "application/octet-stream"
-          asset_name: gma_${{ matrix.os }}
-          asset_path: "target/release/gma"
+          asset_name: gma_${{ matrix.platform.os }}
+          asset_path: "target/release/gma${{ matrix.platform.bin_suffix }}"
           upload_url: ${{ steps.release.outputs.upload_url }}
       - name: "Upload mdl"
         uses: "actions/upload-release-asset@v1"
@@ -50,8 +56,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           asset_content_type: "application/octet-stream"
-          asset_name: mdl_${{ matrix.os }}
-          asset_path: "target/release/mdl"
+          asset_name: mdl_${{ matrix.platform.os }}
+          asset_path: "target/release/mdl${{ matrix.platform.bin_suffix }}"
           upload_url: ${{ steps.release.outputs.upload_url }}
       - name: "Upload vtf"
         uses: "actions/upload-release-asset@v1"
@@ -59,6 +65,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           asset_content_type: "application/octet-stream"
-          asset_name: vtf_${{ matrix.os }}
-          asset_path: "target/release/vtf"
+          asset_name: vtf_${{ matrix.platform.os }}
+          asset_path: "target/release/vtf${{ matrix.platform.bin_suffix }}"
           upload_url: ${{ steps.release.outputs.upload_url }}
