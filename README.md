@@ -32,12 +32,11 @@ workshop get 1512211167 | gma unpack - out
 # download + print contents of all files matching pattern
 workshop get 1512211167 | gma cat - "**.lua"
 
-# example usecase:
-# very rough anti-backdoor script grepping for "http" in all files
-workshop get 426998109 | gma cat - | grep http
-
 # Get item, unpack to folder, update a file, repackage as gma, update to workshop
 workshop get 2137434632 | gma unpack - out && echo `date` > out/date.txt && gma pack out | workshop update 2137434632 -
+
+# Fetch+Unpack workshop item, copy given .mdl and its dependencies (materials+textures) to another folder
+workshop get 1512211167 | gma unpack - tiger && mdl cp tiger/models/kaesar/hobbs/hobbs.mdl my-content
 ```
 
 ## Quickstart
