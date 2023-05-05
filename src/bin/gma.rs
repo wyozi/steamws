@@ -1,6 +1,6 @@
 use steamws::gma;
 
-use clap::{Parser, Subcommand, Args};
+use clap::{Args, Parser, Subcommand};
 use globset::Glob;
 use std::fs;
 use std::fs::File;
@@ -43,7 +43,7 @@ struct ListCommand {
 
     /// Sorts the output and includes extra metadata
     #[arg(short)]
-    long_format: bool
+    long_format: bool,
 }
 
 #[derive(Args)]
@@ -103,10 +103,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let gma = gma::read_gma(&t.input, |name| {
                     cfg!(feature = "vtf") && name.ends_with(".vtf")
                 });
-    
+
                 let mut entries = gma.entries;
                 entries.sort_by(|a, b| a.size.cmp(&b.size));
-    
+
                 for entry in entries {
                     print!("{:8}", steamws::human_readable_size(entry.size));
                     print!("{:40}", entry.name);
@@ -115,11 +115,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if entry.name.ends_with(".vtf") && entry.contents.is_some() {
                         let mut contents = entry.contents.unwrap();
 
-                        if let Ok(vtf) = vtf::from_bytes(&mut contents) {
+                        if let Ok(vtf) = steamws::vtf::from_bytes(&mut contents) {
                             let header = vtf.header;
 
                             //println!("{:?}", header);
-                            print!("[VTF{}.{}: Highres {:>4}x{:<4} {:10} Lowres {:>4}x{:<4} {:10}]",
+                            print!(
+                                "[VTF{}.{}: Highres {:>4}x{:<4} {:10} Lowres {:>4}x{:<4} {:10}]",
                                 header.version[0],
                                 header.version[1],
                                 header.width,
@@ -136,7 +137,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             } else {
                 let gma = gma::read_gma(&t.input, |_| false);
-    
+
                 for entry in gma.entries {
                     println!("{}", entry.name);
                 }
@@ -238,20 +239,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            let addon_json =
-                vec!(
-                    Path::new(&t.folder).join("addon.json"),
-                    Path::new(&t.folder).join("steamws_addon.json")
-                )
-                .iter()
-                .filter_map(|p| {
-                    if p.exists() {
-                        gma::AddonJson::from_file(&p)
-                    } else {
-                        None
-                    }
-                })
-                .next();
+            let addon_json = vec![
+                Path::new(&t.folder).join("addon.json"),
+                Path::new(&t.folder).join("steamws_addon.json"),
+            ]
+            .iter()
+            .filter_map(|p| {
+                if p.exists() {
+                    gma::AddonJson::from_file(&p)
+                } else {
+                    None
+                }
+            })
+            .next();
 
             let entries = visit_dir(Path::new(""), Path::new(&t.folder))
                 .unwrap()
@@ -273,14 +273,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .collect::<Vec<_>>();
 
             let g = gma::GMAFile {
-                name: t.title.or_else(|| {
-                    addon_json.as_ref().map(|a| a.title.clone())
-                }).expect("missing addon title"),
-                description: t.description.unwrap_or_else(|| {
-                    match addon_json {
-                        Some(a) => serde_json::to_string_pretty(&gma::GMADescriptionJson::from_addon(&a)).unwrap(),
-                        _ => "{}".to_string()
+                name: t
+                    .title
+                    .or_else(|| addon_json.as_ref().map(|a| a.title.clone()))
+                    .expect("missing addon title"),
+                description: t.description.unwrap_or_else(|| match addon_json {
+                    Some(a) => {
+                        serde_json::to_string_pretty(&gma::GMADescriptionJson::from_addon(&a))
+                            .unwrap()
                     }
+                    _ => "{}".to_string(),
                 }),
                 author: "Author Name".to_string(),
                 entries: entries,

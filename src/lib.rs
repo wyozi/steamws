@@ -3,6 +3,7 @@ pub mod dependency;
 pub mod gma;
 pub mod mdl;
 pub mod vmt;
+pub mod vtf;
 pub mod workshop;
 
 pub fn human_readable_size(size: u64) -> String {

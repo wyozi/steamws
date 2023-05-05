@@ -80,3 +80,4 @@ and it'll also try its best to clean up the file before the command finishes.
 ## Credits
 
 - Entity lump extraction is inspired by https://github.com/meepen/entremover_bsp
+- VTF code adapted from https://github.com/DotWith/vtf-rs and https://github.com/roman901/vtf-rs
