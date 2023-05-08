@@ -35,6 +35,10 @@ num_enum = { version = "0.5.7", optional = true }
 image = { version = "0.24", optional = true }
 zip = { version = "0.6", default-features = false, optional = true }
 strum = { version = "0.24", optional = true, features = ["derive"] }
+similar = { version = "2.2.1", default-features = false }
+walkdir = "2.3.3"
+colored = "2.0.0"
+sha2 = "0.10.6"
 
 [[bin]]
 name = "gma"

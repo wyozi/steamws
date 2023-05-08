@@ -1,9 +1,13 @@
+use similar::{capture_diff_slices, ChangeTag};
 use steamws::gma;
 
 use clap::{Args, Parser, Subcommand};
 use globset::Glob;
+use sha2::{Digest, Sha256};
+use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::fs::File;
+use std::hash::Hasher;
 use std::io;
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
@@ -28,6 +32,8 @@ enum SubCommand {
     Unpack(UnpackCommand),
     /// Packs folder into a gma file
     Pack(PackCommand),
+    /// Diffs gma against a folder
+    Diff(DiffCommand),
 }
 
 #[derive(Args)]
@@ -80,6 +86,19 @@ struct PackCommand {
     /// flag unless you know what you're doing
     #[arg(short, long)]
     description: Option<String>,
+}
+
+#[derive(Args)]
+struct DiffCommand {
+    /// Source gma. Either a file path or - for stdin
+    input: String,
+
+    /// What to diff against
+    target: String,
+
+    /// Flips "old" and "new", so that the input is considered new and target old
+    #[arg(short, long)]
+    invert: bool,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -291,6 +310,75 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let stdout = io::stdout();
             let mut stdout = stdout.lock();
             gma::write_gma(&g, &mut stdout)?;
+
+            Ok(())
+        }
+        SubCommand::Diff(t) => {
+            let gma = gma::read_gma(&t.input, |_| true);
+
+            #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Clone)]
+            struct DiffItem {
+                name: String,
+                hash: String,
+            }
+
+            let mut a_items: Vec<DiffItem> = gma
+                .entries
+                .into_iter()
+                .map(|e| {
+                    let mut hasher = Sha256::new();
+                    hasher.update(&e.contents.unwrap());
+                    let hash = hasher.finalize();
+
+                    DiffItem {
+                        name: e.name,
+                        hash: format!("{:x}", hash),
+                    }
+                })
+                .collect();
+            a_items.sort_by(|a, b| a.name.cmp(&b.name));
+
+            let mut b_items: Vec<DiffItem> = Vec::new();
+
+            let iter_start = Path::new(&t.target);
+            for entry in walkdir::WalkDir::new(iter_start)
+                .into_iter()
+                .filter_map(Result::ok)
+                .filter(|e| !e.file_type().is_dir())
+            {
+                let rel_path = entry.path().strip_prefix(iter_start)?;
+                let f_name = String::from(rel_path.to_str().unwrap());
+
+                let mut file = File::open(entry.path()).expect("Unable to open file");
+
+                let mut hasher = Sha256::new();
+                io::copy(&mut file, &mut hasher).unwrap();
+                let hash = hasher.finalize();
+
+                b_items.push(DiffItem {
+                    name: f_name,
+                    hash: format!("{:x}", hash),
+                });
+            }
+
+            b_items.sort_by(|a, b| a.name.cmp(&b.name));
+
+            let ops = capture_diff_slices(similar::Algorithm::Myers, &a_items, &b_items);
+            let changes: Vec<_> = ops
+                .iter()
+                .flat_map(|x| x.iter_changes(&a_items, &b_items))
+                .map(|x| (x.tag(), x.value()))
+                .collect();
+
+            for change in changes {
+                use colored::*;
+                let text = match change.0 {
+                    ChangeTag::Delete => format!("{}{:?}", "-", change.1).red(),
+                    ChangeTag::Insert => format!("{}{:?}", "+", change.1).green(),
+                    ChangeTag::Equal => format!("{:?}", change.1).dimmed(),
+                };
+                println!("{}", text);
+            }
 
             Ok(())
         }
